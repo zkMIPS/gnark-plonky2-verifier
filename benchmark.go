@@ -319,8 +319,8 @@ func main() {
 
 	proofSystem := flag.String("proof-system", "groth16", "proof system to benchmark")
 	profileCircuit := flag.Bool("profile", true, "profile the circuit")
-	dummySetup := flag.Bool("dummy", true, "use dummy setup")
-	saveArtifacts := flag.Bool("save", false, "save circuit artifacts")
+	dummySetup := flag.Bool("dummy", false, "use dummy setup")
+	saveArtifacts := flag.Bool("save", true, "save circuit artifacts")
 
 	flag.Parse()
 
