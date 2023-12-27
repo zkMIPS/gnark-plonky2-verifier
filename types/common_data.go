@@ -28,7 +28,7 @@ type CommonCircuitDataRaw struct {
 			NumQueryRounds uint64 `json:"num_query_rounds"`
 		} `json:"fri_config"`
 	} `json:"config"`
-	FriParams struct {
+	ArithFriParams struct {
 		Config struct {
 			RateBits          uint64 `json:"rate_bits"`
 			CapHeight         uint64 `json:"cap_height"`
@@ -41,7 +41,49 @@ type CommonCircuitDataRaw struct {
 		Hiding             bool     `json:"hiding"`
 		DegreeBits         uint64   `json:"degree_bits"`
 		ReductionArityBits []uint64 `json:"reduction_arity_bits"`
-	} `json:"fri_params"`
+	} `json:"arith_fri_params"`
+	CpuFriParams struct {
+		Config struct {
+			RateBits          uint64 `json:"rate_bits"`
+			CapHeight         uint64 `json:"cap_height"`
+			ProofOfWorkBits   uint64 `json:"proof_of_work_bits"`
+			ReductionStrategy struct {
+				ConstantArityBits []uint64 `json:"ConstantArityBits"`
+			} `json:"reduction_strategy"`
+			NumQueryRounds uint64 `json:"num_query_rounds"`
+		} `json:"config"`
+		Hiding             bool     `json:"hiding"`
+		DegreeBits         uint64   `json:"degree_bits"`
+		ReductionArityBits []uint64 `json:"reduction_arity_bits"`
+	} `json:"cpu_fri_params"`
+	LogicFriParams struct {
+		Config struct {
+			RateBits          uint64 `json:"rate_bits"`
+			CapHeight         uint64 `json:"cap_height"`
+			ProofOfWorkBits   uint64 `json:"proof_of_work_bits"`
+			ReductionStrategy struct {
+				ConstantArityBits []uint64 `json:"ConstantArityBits"`
+			} `json:"reduction_strategy"`
+			NumQueryRounds uint64 `json:"num_query_rounds"`
+		} `json:"config"`
+		Hiding             bool     `json:"hiding"`
+		DegreeBits         uint64   `json:"degree_bits"`
+		ReductionArityBits []uint64 `json:"reduction_arity_bits"`
+	} `json:"logic_fri_params"`
+	MemoryFriParams struct {
+		Config struct {
+			RateBits          uint64 `json:"rate_bits"`
+			CapHeight         uint64 `json:"cap_height"`
+			ProofOfWorkBits   uint64 `json:"proof_of_work_bits"`
+			ReductionStrategy struct {
+				ConstantArityBits []uint64 `json:"ConstantArityBits"`
+			} `json:"reduction_strategy"`
+			NumQueryRounds uint64 `json:"num_query_rounds"`
+		} `json:"config"`
+		Hiding             bool     `json:"hiding"`
+		DegreeBits         uint64   `json:"degree_bits"`
+		ReductionArityBits []uint64 `json:"reduction_arity_bits"`
+	} `json:"memory_fri_params"`
 	Gates         []string `json:"gates"`
 	SelectorsInfo struct {
 		SelectorIndices []uint64 `json:"selector_indices"`
@@ -88,13 +130,33 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	commonCircuitData.Config.FriConfig.ProofOfWorkBits = raw.Config.FriConfig.ProofOfWorkBits
 	commonCircuitData.Config.FriConfig.NumQueryRounds = raw.Config.FriConfig.NumQueryRounds
 
-	commonCircuitData.FriParams.DegreeBits = raw.FriParams.DegreeBits
-	commonCircuitData.DegreeBits = raw.FriParams.DegreeBits
-	commonCircuitData.FriParams.Config.RateBits = raw.FriParams.Config.RateBits
-	commonCircuitData.FriParams.Config.CapHeight = raw.FriParams.Config.CapHeight
-	commonCircuitData.FriParams.Config.ProofOfWorkBits = raw.FriParams.Config.ProofOfWorkBits
-	commonCircuitData.FriParams.Config.NumQueryRounds = raw.FriParams.Config.NumQueryRounds
-	commonCircuitData.FriParams.ReductionArityBits = raw.FriParams.ReductionArityBits
+	commonCircuitData.ArithFriParams.DegreeBits = raw.ArithFriParams.DegreeBits
+	commonCircuitData.ArithFriParams.Config.RateBits = raw.ArithFriParams.Config.RateBits
+	commonCircuitData.ArithFriParams.Config.CapHeight = raw.ArithFriParams.Config.CapHeight
+	commonCircuitData.ArithFriParams.Config.ProofOfWorkBits = raw.ArithFriParams.Config.ProofOfWorkBits
+	commonCircuitData.ArithFriParams.Config.NumQueryRounds = raw.ArithFriParams.Config.NumQueryRounds
+	commonCircuitData.ArithFriParams.ReductionArityBits = raw.ArithFriParams.ReductionArityBits
+
+	commonCircuitData.CpuFriParams.DegreeBits = raw.CpuFriParams.DegreeBits
+	commonCircuitData.CpuFriParams.Config.RateBits = raw.CpuFriParams.Config.RateBits
+	commonCircuitData.CpuFriParams.Config.CapHeight = raw.CpuFriParams.Config.CapHeight
+	commonCircuitData.CpuFriParams.Config.ProofOfWorkBits = raw.CpuFriParams.Config.ProofOfWorkBits
+	commonCircuitData.CpuFriParams.Config.NumQueryRounds = raw.CpuFriParams.Config.NumQueryRounds
+	commonCircuitData.CpuFriParams.ReductionArityBits = raw.CpuFriParams.ReductionArityBits
+
+	commonCircuitData.LogicFriParams.DegreeBits = raw.LogicFriParams.DegreeBits
+	commonCircuitData.LogicFriParams.Config.RateBits = raw.LogicFriParams.Config.RateBits
+	commonCircuitData.LogicFriParams.Config.CapHeight = raw.LogicFriParams.Config.CapHeight
+	commonCircuitData.LogicFriParams.Config.ProofOfWorkBits = raw.LogicFriParams.Config.ProofOfWorkBits
+	commonCircuitData.LogicFriParams.Config.NumQueryRounds = raw.LogicFriParams.Config.NumQueryRounds
+	commonCircuitData.LogicFriParams.ReductionArityBits = raw.LogicFriParams.ReductionArityBits
+
+	commonCircuitData.MemoryFriParams.DegreeBits = raw.MemoryFriParams.DegreeBits
+	commonCircuitData.MemoryFriParams.Config.RateBits = raw.MemoryFriParams.Config.RateBits
+	commonCircuitData.MemoryFriParams.Config.CapHeight = raw.MemoryFriParams.Config.CapHeight
+	commonCircuitData.MemoryFriParams.Config.ProofOfWorkBits = raw.MemoryFriParams.Config.ProofOfWorkBits
+	commonCircuitData.MemoryFriParams.Config.NumQueryRounds = raw.MemoryFriParams.Config.NumQueryRounds
+	commonCircuitData.MemoryFriParams.ReductionArityBits = raw.MemoryFriParams.ReductionArityBits
 
 	commonCircuitData.GateIds = raw.Gates
 

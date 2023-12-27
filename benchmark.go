@@ -23,15 +23,22 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool, dummy bool, saveArtifacts bool) {
+func runBenchmark(arithCircuit string, cpuCircuit string, logicCircuit string, memoryCircuit string, plonky2Circuit string, proofSystem string, profileCircuit bool, dummy bool, saveArtifacts bool) {
 	commonCircuitData := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + plonky2Circuit + "/proof_with_public_inputs.json"))
+	arithProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + arithCircuit + "/proof_with_public_inputs.json"))
+	cpuProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + cpuCircuit + "/proof_with_public_inputs.json"))
+	logicProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + logicCircuit + "/proof_with_public_inputs.json"))
+	memoryProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + memoryCircuit + "/proof_with_public_inputs.json"))
+
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json"))
 
 	circuit := verifier.ExampleVerifierCircuit{
-		Proof:                   proofWithPis.Proof,
-		PublicInputs:            proofWithPis.PublicInputs,
+		PublicInputs:            arithProofWithPis.PublicInputs,
+		ArithProof:              arithProofWithPis.Proof,
+		CpuProof:                cpuProofWithPis.Proof,
+		LogicProof:              logicProofWithPis.Proof,
+		MemoryProof:             memoryProofWithPis.Proof,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
 		CommonCircuitData:       commonCircuitData,
 	}
@@ -68,25 +75,36 @@ func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool
 	}
 
 	if proofSystem == "plonk" {
-		plonkProof(r1cs, plonky2Circuit, dummy, saveArtifacts)
+		plonkProof(r1cs, arithCircuit, cpuCircuit, logicCircuit, memoryCircuit, plonky2Circuit, dummy, saveArtifacts)
 	} else if proofSystem == "groth16" {
-		groth16Proof(r1cs, plonky2Circuit, dummy, saveArtifacts)
+		groth16Proof(r1cs, arithCircuit, cpuCircuit, logicCircuit, memoryCircuit, plonky2Circuit, dummy, saveArtifacts)
 	} else {
 		panic("Please provide a valid proof system to benchmark, we only support plonk and groth16")
 	}
 }
 
-func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool, saveArtifacts bool) {
+func plonkProof(r1cs constraint.ConstraintSystem, arithCircuit string, cpuCircuit string, logicCircuit string, memoryCircuit string, circuitName string, dummy bool, saveArtifacts bool) {
 	var pk plonk.ProvingKey
 	var vk plonk.VerifyingKey
 	var err error
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
+	commonCircuitData := types.ReadCommonCircuitData("testdata/" + circuitName + "/common_circuit_data.json")
+
+	arithProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + arithCircuit + "/proof_with_public_inputs.json"))
+	cpuProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + cpuCircuit + "/proof_with_public_inputs.json"))
+	logicProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + logicCircuit + "/proof_with_public_inputs.json"))
+	memoryProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + memoryCircuit + "/proof_with_public_inputs.json"))
+
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+
 	assignment := verifier.ExampleVerifierCircuit{
-		Proof:                   proofWithPis.Proof,
-		PublicInputs:            proofWithPis.PublicInputs,
+		PublicInputs:            arithProofWithPis.PublicInputs,
+		ArithProof:              arithProofWithPis.Proof,
+		CpuProof:                cpuProofWithPis.Proof,
+		LogicProof:              logicProofWithPis.Proof,
+		MemoryProof:             memoryProofWithPis.Proof,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
+		CommonCircuitData:       commonCircuitData,
 	}
 
 	// Don't serialize the circuit for now, since it takes up too much memory
@@ -167,17 +185,28 @@ func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool
 	fmt.Printf("proofBytes: %v\n", proofBytes)
 }
 
-func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool, saveArtifacts bool) {
+func groth16Proof(r1cs constraint.ConstraintSystem, arithCircuit string, cpuCircuit string, logicCircuit string, memoryCircuit string, circuitName string, dummy bool, saveArtifacts bool) {
 	var pk groth16.ProvingKey
 	var vk groth16.VerifyingKey
 	var err error
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
+	commonCircuitData := types.ReadCommonCircuitData("testdata/" + circuitName + "/common_circuit_data.json")
+
+	arithProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + arithCircuit + "/proof_with_public_inputs.json"))
+	cpuProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + cpuCircuit + "/proof_with_public_inputs.json"))
+	logicProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + logicCircuit + "/proof_with_public_inputs.json"))
+	memoryProofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + memoryCircuit + "/proof_with_public_inputs.json"))
+
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+
 	assignment := verifier.ExampleVerifierCircuit{
-		Proof:                   proofWithPis.Proof,
-		PublicInputs:            proofWithPis.PublicInputs,
+		PublicInputs:            arithProofWithPis.PublicInputs,
+		ArithProof:              arithProofWithPis.Proof,
+		CpuProof:                cpuProofWithPis.Proof,
+		LogicProof:              logicProofWithPis.Proof,
+		MemoryProof:             memoryProofWithPis.Proof,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
+		CommonCircuitData:       commonCircuitData,
 	}
 	// Don't serialize the circuit for now, since it takes up too much memory
 	// if saveArtifacts {
@@ -283,7 +312,12 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 
 func main() {
 	plonky2Circuit := flag.String("plonky2-circuit", "step", "plonky2 circuit to benchmark")
-	proofSystem := flag.String("proof-system", "plonk", "proof system to benchmark")
+	arithCircuit := flag.String("arith-circuit", "arith", "arith circuit to benchmark")
+	cpuCircuit := flag.String("cpu-circuit", "cpu", "cpu circuit to benchmark")
+	logicCircuit := flag.String("logic-circuit", "logic", "logic circuit to benchmark")
+	memoryCircuit := flag.String("memory-circuit", "memory", "memeory circuit to benchmark")
+
+	proofSystem := flag.String("proof-system", "groth16", "proof system to benchmark")
 	profileCircuit := flag.Bool("profile", true, "profile the circuit")
 	dummySetup := flag.Bool("dummy", true, "use dummy setup")
 	saveArtifacts := flag.Bool("save", false, "save circuit artifacts")
@@ -302,5 +336,5 @@ func main() {
 	fmt.Printf("Running benchmark for %s circuit with proof system %s\n", *plonky2Circuit, *proofSystem)
 	fmt.Printf("Profiling: %t, DummySetup: %t, SaveArtifacts: %t\n", *profileCircuit, *dummySetup, *saveArtifacts)
 
-	runBenchmark(*plonky2Circuit, *proofSystem, *profileCircuit, *dummySetup, *saveArtifacts)
+	runBenchmark(*arithCircuit, *cpuCircuit, *logicCircuit, *memoryCircuit, *plonky2Circuit, *proofSystem, *profileCircuit, *dummySetup, *saveArtifacts)
 }

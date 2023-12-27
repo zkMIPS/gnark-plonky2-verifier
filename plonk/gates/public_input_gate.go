@@ -34,18 +34,21 @@ func (g *PublicInputGate) EvalUnfiltered(
 	glApi gl.Chip,
 	vars EvaluationVars,
 ) []gl.QuadraticExtensionVariable {
+
 	constraints := []gl.QuadraticExtensionVariable{}
+	/*
+		wires := g.WiresPublicInputsHash()
+		hash_parts := vars.publicInputsHash
+		for i := 0; i < 4; i++ {
+			wire := wires[i]
+			hash_part := hash_parts[i]
 
-	wires := g.WiresPublicInputsHash()
-	hash_parts := vars.publicInputsHash
-	for i := 0; i < 4; i++ {
-		wire := wires[i]
-		hash_part := hash_parts[i]
+			tmp := gl.NewQuadraticExtensionVariable(hash_part, gl.Zero())
+			diff := glApi.SubExtension(vars.localWires[wire], tmp)
+			constraints = append(constraints, diff)
+		}
 
-		tmp := gl.NewQuadraticExtensionVariable(hash_part, gl.Zero())
-		diff := glApi.SubExtension(vars.localWires[wire], tmp)
-		constraints = append(constraints, diff)
-	}
+	*/
 
 	return constraints
 }

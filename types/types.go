@@ -72,11 +72,13 @@ type CircuitConfig struct {
 }
 
 type CommonCircuitData struct {
-	Config CircuitConfig
-	FriParams
+	Config               CircuitConfig
+	ArithFriParams       FriParams
+	CpuFriParams         FriParams
+	LogicFriParams       FriParams
+	MemoryFriParams      FriParams
 	GateIds              []string
 	SelectorsInfo        gates.SelectorsInfo
-	DegreeBits           uint64
 	QuotientDegreeFactor uint64
 	NumGateConstraints   uint64
 	NumConstants         uint64

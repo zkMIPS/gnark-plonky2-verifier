@@ -8,8 +8,12 @@ import (
 )
 
 type ExampleVerifierCircuit struct {
-	PublicInputs            []gl.Variable                     `gnark:",public"`
-	Proof                   variables.Proof                   `gnark:"-"`
+	PublicInputs []gl.Variable   `gnark:",public"`
+	ArithProof   variables.Proof `gnark:"-"`
+	CpuProof     variables.Proof `gnark:"-"`
+	LogicProof   variables.Proof `gnark:"-"`
+	MemoryProof  variables.Proof `gnark:"-"`
+
 	VerifierOnlyCircuitData variables.VerifierOnlyCircuitData `gnark:"-"`
 
 	// This is configuration for the circuit, it is a constant not a variable
@@ -18,7 +22,8 @@ type ExampleVerifierCircuit struct {
 
 func (c *ExampleVerifierCircuit) Define(api frontend.API) error {
 	verifierChip := NewVerifierChip(api, c.CommonCircuitData)
-	verifierChip.Verify(c.Proof, c.PublicInputs, c.VerifierOnlyCircuitData)
+	//verifierChip.Verify(c.Proof, c.PublicInputs, c.VerifierOnlyCircuitData)
+	verifierChip.Verify(c.ArithProof, c.CpuProof, c.LogicProof, c.MemoryProof, c.PublicInputs, c.VerifierOnlyCircuitData)
 
 	return nil
 }

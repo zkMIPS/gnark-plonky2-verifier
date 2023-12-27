@@ -23,7 +23,7 @@ type VerifierChip struct {
 
 func NewVerifierChip(api frontend.API, commonCircuitData types.CommonCircuitData) *VerifierChip {
 	glChip := gl.New(api)
-	friChip := fri.NewChip(api, &commonCircuitData, &commonCircuitData.FriParams)
+	friChip := fri.NewChip(api, &commonCircuitData, &commonCircuitData.ArithFriParams, &commonCircuitData.CpuFriParams, &commonCircuitData.LogicFriParams, &commonCircuitData.MemoryFriParams)
 	plonkChip := plonk.NewPlonkChip(api, commonCircuitData)
 	poseidonGlChip := poseidon.NewGoldilocksChip(api)
 	poseidonBN254Chip := poseidon.NewBN254Chip(api)
@@ -76,7 +76,6 @@ func (c *VerifierChip) GetChallenges(
 			proof.OpeningProof.CommitPhaseMerkleCaps,
 			proof.OpeningProof.FinalPoly,
 			proof.OpeningProof.PowWitness,
-			c.commonData.DegreeBits,
 			config.FriConfig,
 		),
 	}
@@ -140,30 +139,90 @@ func (c *VerifierChip) rangeCheckProof(proof variables.Proof) {
 }
 
 func (c *VerifierChip) Verify(
-	proof variables.Proof,
+	arithProof variables.Proof,
+	cpuProof variables.Proof,
+	logicProof variables.Proof,
+	memoryProof variables.Proof,
 	publicInputs []gl.Variable,
 	verifierData variables.VerifierOnlyCircuitData,
 ) {
-	c.rangeCheckProof(proof)
+	c.rangeCheckProof(arithProof)
+	c.rangeCheckProof(cpuProof)
+	c.rangeCheckProof(logicProof)
+	c.rangeCheckProof(memoryProof)
 
 	// Generate the parts of the witness that is for the plonky2 proof input
+	//publicInputsHash := c.GetPublicInputsHash(publicInputs)
+	// Generate the parts of the witness that is for the plonky2 proof input
 	publicInputsHash := c.GetPublicInputsHash(publicInputs)
-	proofChallenges := c.GetChallenges(proof, publicInputsHash, verifierData)
 
-	c.plonkChip.Verify(proofChallenges, proof.Openings, publicInputsHash)
+	//arith
+	arithProofChallenges := c.GetChallenges(arithProof, publicInputsHash, verifierData)
+	c.plonkChip.Verify(arithProofChallenges, arithProof.Openings, publicInputsHash, c.commonData.ArithFriParams.DegreeBits)
+	//cpu
+	cpuProofChallenges := c.GetChallenges(cpuProof, publicInputsHash, verifierData)
+	c.plonkChip.Verify(cpuProofChallenges, cpuProof.Openings, publicInputsHash, c.commonData.CpuFriParams.DegreeBits)
+	//logic
+	logicProofChallenges := c.GetChallenges(logicProof, publicInputsHash, verifierData)
+	c.plonkChip.Verify(logicProofChallenges, logicProof.Openings, publicInputsHash, c.commonData.LogicFriParams.DegreeBits)
+	//memory
+	memoryProofChallenges := c.GetChallenges(memoryProof, publicInputsHash, verifierData)
+	c.plonkChip.Verify(memoryProofChallenges, memoryProof.Openings, publicInputsHash, c.commonData.MemoryFriParams.DegreeBits)
 
-	initialMerkleCaps := []variables.FriMerkleCap{
+	//arith
+	arithInitialMerkleCaps := []variables.FriMerkleCap{
 		verifierData.ConstantSigmasCap,
-		proof.WiresCap,
-		proof.PlonkZsPartialProductsCap,
-		proof.QuotientPolysCap,
+		arithProof.WiresCap,
+		arithProof.PlonkZsPartialProductsCap,
+		arithProof.QuotientPolysCap,
 	}
-
-	c.friChip.VerifyFriProof(
-		c.friChip.GetInstance(proofChallenges.PlonkZeta),
-		c.friChip.ToOpenings(proof.Openings),
-		&proofChallenges.FriChallenges,
-		initialMerkleCaps,
-		&proof.OpeningProof,
+	c.friChip.ArithVerifyFriProof(
+		c.friChip.GetInstance(arithProofChallenges.PlonkZeta, c.commonData.ArithFriParams.DegreeBits),
+		c.friChip.ToOpenings(arithProof.Openings),
+		&arithProofChallenges.FriChallenges,
+		arithInitialMerkleCaps,
+		&arithProof.OpeningProof,
+	)
+	//cpu
+	cpuInitialMerkleCaps := []variables.FriMerkleCap{
+		verifierData.ConstantSigmasCap,
+		cpuProof.WiresCap,
+		cpuProof.PlonkZsPartialProductsCap,
+		cpuProof.QuotientPolysCap,
+	}
+	c.friChip.CpuVerifyFriProof(
+		c.friChip.GetInstance(cpuProofChallenges.PlonkZeta, c.commonData.CpuFriParams.DegreeBits),
+		c.friChip.ToOpenings(cpuProof.Openings),
+		&cpuProofChallenges.FriChallenges,
+		cpuInitialMerkleCaps,
+		&cpuProof.OpeningProof,
+	)
+	//logic
+	logicInitialMerkleCaps := []variables.FriMerkleCap{
+		verifierData.ConstantSigmasCap,
+		logicProof.WiresCap,
+		logicProof.PlonkZsPartialProductsCap,
+		logicProof.QuotientPolysCap,
+	}
+	c.friChip.LogicVerifyFriProof(
+		c.friChip.GetInstance(logicProofChallenges.PlonkZeta, c.commonData.LogicFriParams.DegreeBits),
+		c.friChip.ToOpenings(logicProof.Openings),
+		&logicProofChallenges.FriChallenges,
+		logicInitialMerkleCaps,
+		&logicProof.OpeningProof,
+	)
+	//memory
+	memoryInitialMerkleCaps := []variables.FriMerkleCap{
+		verifierData.ConstantSigmasCap,
+		memoryProof.WiresCap,
+		memoryProof.PlonkZsPartialProductsCap,
+		memoryProof.QuotientPolysCap,
+	}
+	c.friChip.MemoryVerifyFriProof(
+		c.friChip.GetInstance(memoryProofChallenges.PlonkZeta, c.commonData.MemoryFriParams.DegreeBits),
+		c.friChip.ToOpenings(memoryProof.Openings),
+		&memoryProofChallenges.FriChallenges,
+		memoryInitialMerkleCaps,
+		&memoryProof.OpeningProof,
 	)
 }

@@ -18,7 +18,7 @@
                     5
                 ]
             },
-            "num_query_rounds": 28
+            "num_query_rounds": 84
         }
     },
     "fri_params": {
@@ -32,10 +32,14 @@
                     5
                 ]
             },
-            "num_query_rounds": 28
+            "num_query_rounds": 84
         },
         "hiding": false,
-        "degree_bits": 12,
+        "arith_degree_bits": 17,
+        "cpu_degree_bits": 18,
+        "logic_degree_bits": 15,
+        "memory_degree_bits": 21,
+
         "reduction_arity_bits": [
             4,
             4
@@ -43,7 +47,6 @@
     },
     "gates": [
         "NoopGate",
-        "ConstantGate { num_consts: 2 }",
         "PoseidonMdsGate(PhantomData<plonky2_field::goldilocks_field::GoldilocksField>)<WIDTH=12>",
         "PublicInputGate",
         "BaseSumGate { num_limbs: 63 } + Base: 2",
@@ -52,6 +55,7 @@
         "ArithmeticExtensionGate { num_ops: 10 }",
         "ArithmeticGate { num_ops: 20 }",
         "MulExtensionGate { num_ops: 13 }",
+        "ExponentiationGate { num_power_bits: 67, _phantom: PhantomData<plonky2_field::goldilocks_field::GoldilocksField> }<D=2>",
         "RandomAccessGate { bits: 4, num_copies: 4, num_extra_constants: 2, _phantom: PhantomData<plonky2_field::goldilocks_field::GoldilocksField> }<D=2>",
         "CosetInterpolationGate { subgroup_bits: 4, degree: 6, barycentric_weights: [17293822565076172801, 18374686475376656385, 18446744069413535745, 281474976645120, 17592186044416, 18446744069414584577, 18446744000695107601, 18446744065119617025, 1152921504338411520, 72057594037927936, 18446744069415632897, 18446462594437939201, 18446726477228539905, 18446744069414584065, 68719476720, 4294967296], _phantom: PhantomData<plonky2_field::goldilocks_field::GoldilocksField> }<D=2>",
         "PoseidonGate(PhantomData<plonky2_field::goldilocks_field::GoldilocksField>)<WIDTH=12>"
@@ -64,33 +68,37 @@
             0,
             0,
             0,
-            0,
             1,
             1,
             1,
             1,
             2,
-            2
+            2,
+            3
         ],
         "groups": [
             {
                 "start": 0,
-                "end": 7
+                "end": 6
             },
             {
-                "start": 7,
-                "end": 11
+                "start": 6,
+                "end": 10
             },
             {
-                "start": 11,
+                "start": 10,
+                "end": 12
+            },
+            {
+                "start": 12,
                 "end": 13
             }
         ]
     },
     "quotient_degree_factor": 8,
     "num_gate_constraints": 123,
-    "num_constants": 5,
-    "num_public_inputs": 0,
+    "num_constants": 6,
+    "num_public_inputs": 36,
     "k_is": [
         1,
         7,

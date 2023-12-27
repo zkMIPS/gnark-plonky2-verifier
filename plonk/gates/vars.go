@@ -3,6 +3,7 @@ package gates
 import (
 	gl "github.com/succinctlabs/gnark-plonky2-verifier/goldilocks"
 	"github.com/succinctlabs/gnark-plonky2-verifier/poseidon"
+	//"github.com/succinctlabs/gnark-plonky2-verifier/poseidon"
 )
 
 type EvaluationVars struct {

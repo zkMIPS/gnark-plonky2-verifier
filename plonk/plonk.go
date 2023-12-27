@@ -16,10 +16,10 @@ type PlonkChip struct {
 
 	// These are global constant variables that we use in this Chip that we save here.
 	// This avoids having to recreate them every time we use them.
-	DEGREE        gl.Variable                   `gnark:"-"`
-	DEGREE_BITS_F gl.Variable                   `gnark:"-"`
-	DEGREE_QE     gl.QuadraticExtensionVariable `gnark:"-"`
-	commonDataKIs []gl.Variable                 `gnark:"-"`
+	//DEGREE        gl.Variable                   `gnark:"-"`
+	//DEGREE_BITS_F gl.Variable                   `gnark:"-"`
+	//DEGREE_QE     gl.QuadraticExtensionVariable `gnark:"-"`
+	commonDataKIs []gl.Variable `gnark:"-"`
 
 	evaluateGatesChip *gates.EvaluateGatesChip
 }
@@ -43,24 +43,24 @@ func NewPlonkChip(api frontend.API, commonData types.CommonCircuitData) *PlonkCh
 
 		commonData: commonData,
 
-		DEGREE:        gl.NewVariable(1 << commonData.DegreeBits),
-		DEGREE_BITS_F: gl.NewVariable(commonData.DegreeBits),
-		DEGREE_QE:     gl.NewVariable(1 << commonData.DegreeBits).ToQuadraticExtension(),
+		//DEGREE:        gl.NewVariable(1 << commonData.DegreeBits),
+		//DEGREE_BITS_F: gl.NewVariable(commonData.DegreeBits),
+		//DEGREE_QE:     gl.NewVariable(1 << commonData.DegreeBits).ToQuadraticExtension(),
 		commonDataKIs: gl.Uint64ArrayToVariableArray(commonData.KIs),
 
 		evaluateGatesChip: evaluateGatesChip,
 	}
 }
 
-func (p *PlonkChip) expPowerOf2Extension(x gl.QuadraticExtensionVariable) gl.QuadraticExtensionVariable {
+func (p *PlonkChip) expPowerOf2Extension(x gl.QuadraticExtensionVariable, DegreeBits uint64) gl.QuadraticExtensionVariable {
 	glApi := gl.New(p.api)
-	for i := uint64(0); i < p.commonData.DegreeBits; i++ {
+	for i := uint64(0); i < DegreeBits; i++ {
 		x = glApi.MulExtension(x, x)
 	}
 	return x
 }
 
-func (p *PlonkChip) evalL0(x gl.QuadraticExtensionVariable, xPowN gl.QuadraticExtensionVariable) gl.QuadraticExtensionVariable {
+func (p *PlonkChip) evalL0(x gl.QuadraticExtensionVariable, xPowN gl.QuadraticExtensionVariable, DEGREE gl.Variable, DEGREE_QE gl.QuadraticExtensionVariable) gl.QuadraticExtensionVariable {
 	// L_0(x) = (x^n - 1) / (n * (x - 1))
 	glApi := gl.New(p.api)
 	evalZeroPoly := glApi.SubExtension(
@@ -68,8 +68,8 @@ func (p *PlonkChip) evalL0(x gl.QuadraticExtensionVariable, xPowN gl.QuadraticEx
 		gl.OneExtension(),
 	)
 	denominator := glApi.SubExtension(
-		glApi.ScalarMulExtension(x, p.DEGREE),
-		p.DEGREE_QE,
+		glApi.ScalarMulExtension(x, DEGREE),
+		DEGREE_QE,
 	)
 	return glApi.DivExtension(
 		evalZeroPoly,
@@ -118,6 +118,8 @@ func (p *PlonkChip) evalVanishingPoly(
 	proofChallenges variables.ProofChallenges,
 	openings variables.OpeningSet,
 	zetaPowN gl.QuadraticExtensionVariable,
+	degree gl.Variable,
+	degree_qe gl.QuadraticExtensionVariable,
 ) []gl.QuadraticExtensionVariable {
 	glApi := gl.New(p.api)
 	constraintTerms := p.evaluateGatesChip.EvaluateGateConstraints(vars)
@@ -130,7 +132,7 @@ func (p *PlonkChip) evalVanishingPoly(
 	}
 
 	// Calculate L_0(zeta)
-	l0Zeta := p.evalL0(proofChallenges.PlonkZeta, zetaPowN)
+	l0Zeta := p.evalL0(proofChallenges.PlonkZeta, zetaPowN, degree, degree_qe)
 
 	vanishingZ1Terms := make([]gl.QuadraticExtensionVariable, 0, p.commonData.Config.NumChallenges)
 	vanishingPartialProductsTerms := make([]gl.QuadraticExtensionVariable, 0, p.commonData.Config.NumChallenges*p.commonData.NumPartialProducts)
@@ -205,11 +207,12 @@ func (p *PlonkChip) Verify(
 	proofChallenges variables.ProofChallenges,
 	openings variables.OpeningSet,
 	publicInputsHash poseidon.GoldilocksHashOut,
+	DegreeBits uint64,
 ) {
 	glApi := gl.New(p.api)
 
 	// Calculate zeta^n
-	zetaPowN := p.expPowerOf2Extension(proofChallenges.PlonkZeta)
+	zetaPowN := p.expPowerOf2Extension(proofChallenges.PlonkZeta, DegreeBits)
 
 	localConstants := openings.Constants
 	localWires := openings.Wires
@@ -218,8 +221,10 @@ func (p *PlonkChip) Verify(
 		localWires,
 		publicInputsHash,
 	)
+	DEGREE := gl.NewVariable(1 << DegreeBits)
+	DEGREE_QE := gl.NewVariable(1 << DegreeBits).ToQuadraticExtension()
 
-	vanishingPolysZeta := p.evalVanishingPoly(*vars, proofChallenges, openings, zetaPowN)
+	vanishingPolysZeta := p.evalVanishingPoly(*vars, proofChallenges, openings, zetaPowN, DEGREE, DEGREE_QE)
 
 	// Calculate Z(H)
 	zHZeta := glApi.SubExtension(zetaPowN, gl.OneExtension())

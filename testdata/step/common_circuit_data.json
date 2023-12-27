@@ -21,7 +21,67 @@
             "num_query_rounds": 28
         }
     },
-    "fri_params": {
+    "arith_fri_params": {
+        "config": {
+            "rate_bits": 3,
+            "cap_height": 4,
+            "proof_of_work_bits": 16,
+            "reduction_strategy": {
+                "ConstantArityBits": [
+                    4,
+                    5
+                ]
+            },
+            "num_query_rounds": 28
+        },
+        "hiding": false,
+        "degree_bits": 13,
+        "reduction_arity_bits": [
+            4,
+            4
+        ]
+    },
+    "cpu_fri_params": {
+        "config": {
+            "rate_bits": 3,
+            "cap_height": 4,
+            "proof_of_work_bits": 16,
+            "reduction_strategy": {
+                "ConstantArityBits": [
+                    4,
+                    5
+                ]
+            },
+            "num_query_rounds": 28
+        },
+        "hiding": false,
+        "degree_bits": 13,
+        "reduction_arity_bits": [
+            4,
+            4
+        ]
+    },
+    "logic_fri_params": {
+        "config": {
+            "rate_bits": 3,
+            "cap_height": 4,
+            "proof_of_work_bits": 16,
+            "reduction_strategy": {
+                "ConstantArityBits": [
+                    4,
+                    5
+                ]
+            },
+            "num_query_rounds": 28
+        },
+        "hiding": false,
+        "degree_bits": 13,
+        "reduction_arity_bits": [
+            4,
+            4
+        ]
+    },
+    "memory_fri_params": {
         "config": {
             "rate_bits": 3,
             "cap_height": 4,
