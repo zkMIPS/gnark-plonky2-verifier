@@ -18,23 +18,33 @@ import (
 	"os"
 )
 
-
 var GoerliId = big.NewInt(5)
 
 func main() {
-	deployAndCallVerifierContract()
+	PrintVk()
+	//deployAndCallVerifierContract()
 	//verifyLocal()
 }
 
+func PrintVk() {
+	var circuitName = "mips"
+	var vk = groth16.NewVerifyingKey(ecc.BN254)
+
+	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
+	vk.ReadFrom(fVk)
+	defer fVk.Close()
+	groth16.PrintBn254Vk(vk)
+}
+
 func deployAndCallVerifierContract() {
-	var network = ""
+	var network = "https://eth-goerli.g.alchemy.com/v2/zKJf16XxhgdL6wMKT_NulOFfBfoT8YqE"
 	client, err := ethclient.Dial(network)
 	if err != nil {
 		log.Fatalf("Failed to create eth client: %v", err)
 	}
 	var circuitName = "mips"
 
-	unlockedKey, err := crypto.HexToECDSA("") //
+	unlockedKey, err := crypto.HexToECDSA("df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9") // 0x21f59Cfb0d41FA2c0eeF0Fe1593F46f704C1Db50
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -56,13 +66,13 @@ func deployAndCallVerifierContract() {
 	}
 
 	proof := groth16.NewProof(ecc.BN254)
-	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/"+ circuitName + "/proof.proof")
+	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof.proof")
 	proof.ReadFrom(fProof)
 	defer fProof.Close()
 
 	var vk = groth16.NewVerifyingKey(ecc.BN254)
 
-	fVk,_ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/"+ circuitName + "/verifying.key")
+	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 
@@ -79,6 +89,13 @@ func deployAndCallVerifierContract() {
 		proofInputs[i] = new(big.Int).SetBytes(proofBytes[fpSize*i : fpSize*(i+1)])
 	}
 
+	proofInputs[2], proofInputs[3] = proofInputs[3], proofInputs[2]
+	proofInputs[4], proofInputs[5] = proofInputs[5], proofInputs[4]
+
+	for i := 0; i < 8; i++ {
+		fmt.Printf("proofInputs[%v]:%s\n", i, proofInputs[i].String())
+	}
+
 	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof_with_public_inputs.json"))
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifier_only_circuit_data.json"))
 	assignment := verifier.ExampleVerifierCircuit{
@@ -90,7 +107,7 @@ func deployAndCallVerifierContract() {
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	publicWitness, _ := witness.Public()
 
-	err,bPublicWitness := groth16.GetBn254Witness(proof, vk, publicWitness)
+	err, bPublicWitness, commitmentX, commitmentY := groth16.GetBn254Witness(proof, vk, publicWitness)
 
 	fmt.Printf("bPublicWitness len:%+v\n", len(bPublicWitness))
 
@@ -110,7 +127,30 @@ func deployAndCallVerifierContract() {
 		fmt.Printf("input[%v]:%s\n", i, input[i].String())
 	}
 
-	tx,err = verifierContract.VerifyProof(auth, proofInputs, input)
+	var vp = verifier.VerifierProof{
+		A: verifier.PairingG1Point{
+			X: proofInputs[0],
+			Y: proofInputs[1],
+		},
+		B: verifier.PairingG2Point{
+			X: [2]*big.Int{proofInputs[2], proofInputs[3]},
+			Y: [2]*big.Int{proofInputs[4], proofInputs[5]},
+		},
+		C: verifier.PairingG1Point{
+			X: proofInputs[6],
+			Y: proofInputs[7],
+		},
+	}
+
+	var proofCommitment [2]*big.Int
+	proofCommitment[0] = new(big.Int)
+	commitmentX.BigInt(proofCommitment[0])
+	proofCommitment[1] = new(big.Int)
+	commitmentY.BigInt(proofCommitment[1])
+
+	fmt.Printf("proofCommitmentX:%s,proofCommitmentY:%s\n", proofCommitment[0].String(), proofCommitment[1].String())
+
+	tx, err = verifierContract.VerifyTx(auth, vp, input, proofCommitment)
 	if err != nil {
 		log.Fatalf("Failed to VerifyProof,err:[%+v]", err)
 	}
@@ -132,12 +172,12 @@ func verifyLocal() {
 
 	var vk = groth16.NewVerifyingKey(ecc.BN254)
 
-	fVk,_ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/"+ circuitName + "/verifying.key")
+	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 
 	proof := groth16.NewProof(ecc.BN254)
-	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/"+ circuitName + "/proof.proof")
+	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof.proof")
 	proof.ReadFrom(fProof)
 	defer fProof.Close()
 
