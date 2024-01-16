@@ -229,8 +229,8 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	if saveArtifacts {
-		fProof, _ := os.Create("proof.proof")
+	if true {
+		fProof, _ := os.Create("testdata/" + circuitName + "proof.proof")
 		proof.WriteTo(fProof)
 		fProof.Close()
 	}
