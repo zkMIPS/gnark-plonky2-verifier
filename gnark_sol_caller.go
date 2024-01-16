@@ -30,7 +30,7 @@ func PrintVk() {
 	var circuitName = "mips"
 	var vk = groth16.NewVerifyingKey(ecc.BN254)
 
-	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
+	fVk, _ := os.Open("testdata/" + circuitName + "/verifying.key")
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 	groth16.PrintBn254Vk(vk)
@@ -66,13 +66,13 @@ func deployAndCallVerifierContract() {
 	}
 
 	proof := groth16.NewProof(ecc.BN254)
-	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof.proof")
+	fProof, _ := os.Open("testdata/" + circuitName + "/proof.proof")
 	proof.ReadFrom(fProof)
 	defer fProof.Close()
 
 	var vk = groth16.NewVerifyingKey(ecc.BN254)
 
-	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
+	fVk, _ := os.Open("testdata/" + circuitName + "/verifying.key")
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 
@@ -96,8 +96,8 @@ func deployAndCallVerifierContract() {
 		fmt.Printf("proofInputs[%v]:%s\n", i, proofInputs[i].String())
 	}
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -159,8 +159,8 @@ func deployAndCallVerifierContract() {
 
 func verifyLocal() {
 	var circuitName = "mips"
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -172,12 +172,12 @@ func verifyLocal() {
 
 	var vk = groth16.NewVerifyingKey(ecc.BN254)
 
-	fVk, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/verifying.key")
+	fVk, _ := os.Open("testdata/" + circuitName + "/verifying.key")
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 
 	proof := groth16.NewProof(ecc.BN254)
-	fProof, _ := os.Open("/Users/bj89200ml/Documents/golang_workspace/src/github.com/succinctlabs/gnark-plonky2-verifier/testdata/" + circuitName + "/proof.proof")
+	fProof, _ := os.Open("testdata/" + circuitName + "/proof.proof")
 	proof.ReadFrom(fProof)
 	defer fProof.Close()
 
