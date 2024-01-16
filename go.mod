@@ -8,7 +8,7 @@ require (
 	github.com/ethereum/go-ethereum v1.13.10
 )
 
-replace github.com/consensys/gnark v0.9.0 => github.com/zkMIPS/gnark
+replace github.com/consensys/gnark v0.9.0 => github.com/zkMIPS/gnark verifier
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
