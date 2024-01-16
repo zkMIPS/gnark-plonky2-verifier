@@ -21,8 +21,8 @@ import (
 var GoerliId = big.NewInt(5)
 
 func main() {
-	PrintVk()
-	//deployAndCallVerifierContract()
+	//PrintVk()
+	deployAndCallVerifierContract()
 	//verifyLocal()
 }
 
