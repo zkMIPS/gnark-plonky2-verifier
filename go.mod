@@ -8,7 +8,7 @@ require (
 	github.com/ethereum/go-ethereum v1.13.10
 )
 
-replace github.com/consensys/gnark v0.9.0 => /Users/bj89200ml/Documents/golang_workspace/src/github.com/consensys/gnark
+replace github.com/consensys/gnark v0.9.0 => github.com/zkMIPS/gnark
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
