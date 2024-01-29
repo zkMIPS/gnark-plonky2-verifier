@@ -229,7 +229,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	if true {
+	if saveArtifacts {
 		fProof, _ := os.Create("testdata/" + circuitName + "proof.proof")
 		proof.WriteTo(fProof)
 		fProof.Close()
@@ -286,7 +286,7 @@ func main() {
 	proofSystem := flag.String("proof-system", "groth16", "proof system to benchmark")
 	profileCircuit := flag.Bool("profile", true, "profile the circuit")
 	dummySetup := flag.Bool("dummy", false, "use dummy setup")
-	saveArtifacts := flag.Bool("save", false, "save circuit artifacts")
+	saveArtifacts := flag.Bool("save", true, "save circuit artifacts")
 
 	flag.Parse()
 
