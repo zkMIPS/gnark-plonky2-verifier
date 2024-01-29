@@ -200,17 +200,17 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	}
 
 	if saveArtifacts {
-		fPK, _ := os.Create("testdata/" + circuitName + "proving.key")
+		fPK, _ := os.Create("testdata/" + circuitName + "/proving.key")
 		pk.WriteTo(fPK)
 		fPK.Close()
 
 		if vk != nil {
-			fVK, _ := os.Create("testdata/" + circuitName + "verifying.key")
+			fVK, _ := os.Create("testdata/" + circuitName + "/verifying.key")
 			vk.WriteTo(fVK)
 			fVK.Close()
 		}
 
-		fSolidity, _ := os.Create("testdata/" + circuitName + "proof.sol")
+		fSolidity, _ := os.Create("testdata/" + circuitName + "/proof.sol")
 		err = vk.ExportSolidity(fSolidity)
 	}
 
@@ -218,7 +218,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	publicWitness, _ := witness.Public()
 	if saveArtifacts {
-		fWitness, _ := os.Create("testdata/" + circuitName + "witness")
+		fWitness, _ := os.Create("testdata/" + circuitName + "/witness")
 		witness.WriteTo(fWitness)
 		fWitness.Close()
 	}
@@ -230,7 +230,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		os.Exit(1)
 	}
 	if saveArtifacts {
-		fProof, _ := os.Create("testdata/" + circuitName + "proof.proof")
+		fProof, _ := os.Create("testdata/" + circuitName + "/proof.proof")
 		proof.WriteTo(fProof)
 		fProof.Close()
 	}
