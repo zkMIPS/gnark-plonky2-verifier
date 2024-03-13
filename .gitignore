@@ -16,6 +16,7 @@
 
 gnark-ed25519
 gnark.pprof
+gnark_sol_caller
 
 # Output from pprof visualization
 verifier.png
