@@ -19,11 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ProverService_GetStatus_FullMethodName    = "/prover.v1.ProverService/GetStatus"
-	ProverService_SplitElf_FullMethodName     = "/prover.v1.ProverService/SplitElf"
-	ProverService_Prove_FullMethodName        = "/prover.v1.ProverService/Prove"
-	ProverService_Aggregate_FullMethodName    = "/prover.v1.ProverService/Aggregate"
-	ProverService_AggregateAll_FullMethodName = "/prover.v1.ProverService/AggregateAll"
+	ProverService_GetStatus_FullMethodName     = "/prover.v1.ProverService/GetStatus"
+	ProverService_GetTaskResult_FullMethodName = "/prover.v1.ProverService/GetTaskResult"
+	ProverService_SplitElf_FullMethodName      = "/prover.v1.ProverService/SplitElf"
+	ProverService_Prove_FullMethodName         = "/prover.v1.ProverService/Prove"
+	ProverService_Aggregate_FullMethodName     = "/prover.v1.ProverService/Aggregate"
+	ProverService_AggregateAll_FullMethodName  = "/prover.v1.ProverService/AggregateAll"
+	ProverService_FinalProof_FullMethodName    = "/prover.v1.ProverService/FinalProof"
 )
 
 // ProverServiceClient is the client API for ProverService service.
@@ -31,10 +33,12 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ProverServiceClient interface {
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
+	GetTaskResult(ctx context.Context, in *GetTaskResultRequest, opts ...grpc.CallOption) (*GetTaskResultResponse, error)
 	SplitElf(ctx context.Context, in *SplitElfRequest, opts ...grpc.CallOption) (*SplitElfResponse, error)
 	Prove(ctx context.Context, in *ProveRequest, opts ...grpc.CallOption) (*ProveResponse, error)
 	Aggregate(ctx context.Context, in *AggregateRequest, opts ...grpc.CallOption) (*AggregateResponse, error)
 	AggregateAll(ctx context.Context, in *AggregateAllRequest, opts ...grpc.CallOption) (*AggregateAllResponse, error)
+	FinalProof(ctx context.Context, in *FinalProofRequest, opts ...grpc.CallOption) (*FinalProofResponse, error)
 }
 
 type proverServiceClient struct {
@@ -48,6 +52,15 @@ func NewProverServiceClient(cc grpc.ClientConnInterface) ProverServiceClient {
 func (c *proverServiceClient) GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error) {
 	out := new(GetStatusResponse)
 	err := c.cc.Invoke(ctx, ProverService_GetStatus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *proverServiceClient) GetTaskResult(ctx context.Context, in *GetTaskResultRequest, opts ...grpc.CallOption) (*GetTaskResultResponse, error) {
+	out := new(GetTaskResultResponse)
+	err := c.cc.Invoke(ctx, ProverService_GetTaskResult_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,15 +103,26 @@ func (c *proverServiceClient) AggregateAll(ctx context.Context, in *AggregateAll
 	return out, nil
 }
 
+func (c *proverServiceClient) FinalProof(ctx context.Context, in *FinalProofRequest, opts ...grpc.CallOption) (*FinalProofResponse, error) {
+	out := new(FinalProofResponse)
+	err := c.cc.Invoke(ctx, ProverService_FinalProof_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProverServiceServer is the server API for ProverService service.
 // All implementations must embed UnimplementedProverServiceServer
 // for forward compatibility
 type ProverServiceServer interface {
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
+	GetTaskResult(context.Context, *GetTaskResultRequest) (*GetTaskResultResponse, error)
 	SplitElf(context.Context, *SplitElfRequest) (*SplitElfResponse, error)
 	Prove(context.Context, *ProveRequest) (*ProveResponse, error)
 	Aggregate(context.Context, *AggregateRequest) (*AggregateResponse, error)
 	AggregateAll(context.Context, *AggregateAllRequest) (*AggregateAllResponse, error)
+	FinalProof(context.Context, *FinalProofRequest) (*FinalProofResponse, error)
 	mustEmbedUnimplementedProverServiceServer()
 }
 
@@ -108,6 +132,9 @@ type UnimplementedProverServiceServer struct {
 
 func (UnimplementedProverServiceServer) GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedProverServiceServer) GetTaskResult(context.Context, *GetTaskResultRequest) (*GetTaskResultResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTaskResult not implemented")
 }
 func (UnimplementedProverServiceServer) SplitElf(context.Context, *SplitElfRequest) (*SplitElfResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SplitElf not implemented")
@@ -120,6 +147,9 @@ func (UnimplementedProverServiceServer) Aggregate(context.Context, *AggregateReq
 }
 func (UnimplementedProverServiceServer) AggregateAll(context.Context, *AggregateAllRequest) (*AggregateAllResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AggregateAll not implemented")
+}
+func (UnimplementedProverServiceServer) FinalProof(context.Context, *FinalProofRequest) (*FinalProofResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinalProof not implemented")
 }
 func (UnimplementedProverServiceServer) mustEmbedUnimplementedProverServiceServer() {}
 
@@ -148,6 +178,24 @@ func _ProverService_GetStatus_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProverServiceServer).GetStatus(ctx, req.(*GetStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProverService_GetTaskResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTaskResultRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProverServiceServer).GetTaskResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProverService_GetTaskResult_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProverServiceServer).GetTaskResult(ctx, req.(*GetTaskResultRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -224,6 +272,24 @@ func _ProverService_AggregateAll_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProverService_FinalProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalProofRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProverServiceServer).FinalProof(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProverService_FinalProof_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProverServiceServer).FinalProof(ctx, req.(*FinalProofRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProverService_ServiceDesc is the grpc.ServiceDesc for ProverService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -234,6 +300,10 @@ var ProverService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _ProverService_GetStatus_Handler,
+		},
+		{
+			MethodName: "GetTaskResult",
+			Handler:    _ProverService_GetTaskResult_Handler,
 		},
 		{
 			MethodName: "SplitElf",
@@ -250,6 +320,10 @@ var ProverService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AggregateAll",
 			Handler:    _ProverService_AggregateAll_Handler,
+		},
+		{
+			MethodName: "FinalProof",
+			Handler:    _ProverService_FinalProof_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

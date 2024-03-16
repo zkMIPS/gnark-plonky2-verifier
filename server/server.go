@@ -52,6 +52,18 @@ func (s *proverService) AggregateAll(ctx context.Context, in *pb.AggregateAllReq
 	return &pb.AggregateAllResponse{}, nil
 }
 
+func (s *proverService) GetTaskResult(context.Context, *pb.GetTaskResultRequest) (*pb.GetTaskResultResponse, error) {
+	// TODO
+
+	return &pb.GetTaskResultResponse{}, nil
+}
+
+func (s *proverService) FinalProof(context.Context, *pb.FinalProofRequest) (*pb.FinalProofResponse, error) {
+	// TODO
+
+	return &pb.FinalProofResponse{}, nil
+}
+
 func newServer() *proverService {
 	s := &proverService{}
 	return s
