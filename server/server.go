@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	certFile = flag.String("cert_file", "", "The TLS cert file")
-	keyFile  = flag.String("key_file", "", "The TLS key file")
-	port     = flag.Int("port", 50051, "The server port")
+	tls             = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	certFile        = flag.String("cert_file", "", "The TLS cert file")
+	keyFile         = flag.String("key_file", "", "The TLS key file")
+	port            = flag.Int("port", 50051, "The server port")
+	workerName      = flag.String("prover_worker_name", "groth16_prover", "The prover worker name")
+	proverCycleTime = flag.Uint64("prover_cycle_time", 1000, "The prover cycle time")
 )
 
 type proverService struct {
@@ -89,6 +91,11 @@ func main() {
 		}
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
+
+	go func(workerName string, interval uint64) {
+		proverWorkCycle(workerName, interval)
+	}(*workerName, *proverCycleTime)
+
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterProverServiceServer(grpcServer, newServer())
 	grpcServer.Serve(lis)
