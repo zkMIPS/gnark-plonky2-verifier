@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"github.com/succinctlabs/gnark-plonky2-verifier/certificate/data"
@@ -11,6 +12,8 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
