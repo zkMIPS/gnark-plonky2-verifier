@@ -24,7 +24,14 @@ var (
 	workerName      = flag.String("prover_worker_name", "groth16_prover", "The prover worker name")
 	proverCycleTime = flag.Uint64("prover_cycle_time", 1000, "The prover cycle time")
 	proverTimeout   = flag.Uint64("prover_time_out", 60*60, "The prover time out")
+	dbUser          = flag.String("db_user", "root", "The database username")
+	dbPassword      = flag.String("db_password", "123456", "The database password")
+	dbHost          = flag.String("db_host", "127.0.0.1", "The datbase host")
+	dbPort          = flag.String("db_port", "3306", "The database port")
+	dbName          = flag.String("db_name", "zkm", "The database name")
 )
+
+var db *sql.DB = nil
 
 type proverService struct {
 	pb.UnimplementedProverServiceServer
@@ -33,46 +40,56 @@ type proverService struct {
 }
 
 func (s *proverService) GetStatus(ctx context.Context, in *pb.GetStatusRequest) (*pb.GetStatusResponse, error) {
-	// TODO
+	// Unsupported
 	return &pb.GetStatusResponse{}, nil
 }
 
 func (s *proverService) SplitElf(ctx context.Context, in *pb.SplitElfRequest) (*pb.SplitElfResponse, error) {
-	// TODO
+	// Unsupported
 	return &pb.SplitElfResponse{}, nil
 }
 
 func (s *proverService) Prove(ctx context.Context, in *pb.ProveRequest) (*pb.ProveResponse, error) {
-	// TODO
+	// Unsupported
 	return &pb.ProveResponse{}, nil
 }
 
 func (s *proverService) Aggregate(ctx context.Context, in *pb.AggregateRequest) (*pb.AggregateResponse, error) {
-	// TODO
+	// Unsupported
 	return &pb.AggregateResponse{}, nil
 }
 
 func (s *proverService) AggregateAll(ctx context.Context, in *pb.AggregateAllRequest) (*pb.AggregateAllResponse, error) {
-	// TODO
+	// Unsupported
 
 	return &pb.AggregateAllResponse{}, nil
 }
 
-func (s *proverService) GetTaskResult(context.Context, *pb.GetTaskResultRequest) (*pb.GetTaskResultResponse, error) {
-	// TODO
+func (s *proverService) GetTaskResult(ctx context.Context, req *pb.GetTaskResultRequest) (*pb.GetTaskResultResponse, error) {
+	result := queryProverJobStatus(req)
 
-	return &pb.GetTaskResultResponse{}, nil
+	return &pb.GetTaskResultResponse{ProofId: req.ProofId, ComputedRequestId: req.ComputedRequestId, Result: result}, nil
 }
 
 func (s *proverService) FinalProof(ctx context.Context, req *pb.FinalProofRequest) (*pb.FinalProofResponse, error) {
-	addProverJobToQueue(ctx, req)
+	result := addProverJobToQueue(ctx, req)
 
-	return &pb.FinalProofResponse{ProofId: req.ProofId, ComputedRequestId: req.ComputedRequestId, Result: getSuccessResult(pb.ResultCode_RESULT_OK, "get task successfully")}, nil
+	return &pb.FinalProofResponse{ProofId: req.ProofId, ComputedRequestId: req.ComputedRequestId, Result: result}, nil
 }
 
 func newServer() *proverService {
 	s := &proverService{}
 	return s
+}
+
+func initDatabase() {
+	var err error = nil
+	db, err = sql.Open("mysql",
+		fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", *dbUser, *dbPassword, *dbHost, *dbPort, *dbName))
+	if err != nil {
+		log.Fatalf("Failed to ")
+	}
+	defer db.Close()
 }
 
 func main() {
@@ -95,6 +112,8 @@ func main() {
 		}
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
+
+	initDatabase()
 
 	go func(workerName string, interval uint64, timeout uint64) {
 		proverWorkCycle(workerName, interval, timeout)
