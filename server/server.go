@@ -20,6 +20,7 @@ var (
 	port            = flag.Int("port", 50051, "The server port")
 	workerName      = flag.String("prover_worker_name", "groth16_prover", "The prover worker name")
 	proverCycleTime = flag.Uint64("prover_cycle_time", 1000, "The prover cycle time")
+	proverTimeout   = flag.Uint64("prover_time_out", 60*60, "The prover time out")
 )
 
 type proverService struct {
@@ -60,10 +61,10 @@ func (s *proverService) GetTaskResult(context.Context, *pb.GetTaskResultRequest)
 	return &pb.GetTaskResultResponse{}, nil
 }
 
-func (s *proverService) FinalProof(context.Context, *pb.FinalProofRequest) (*pb.FinalProofResponse, error) {
-	// TODO
+func (s *proverService) FinalProof(ctx context.Context, req *pb.FinalProofRequest) (*pb.FinalProofResponse, error) {
+	addProverJobToQueue(ctx, req)
 
-	return &pb.FinalProofResponse{}, nil
+	return &pb.FinalProofResponse{ProofId: req.ProofId, ComputedRequestId: req.ComputedRequestId, Result: getSuccessResult(pb.ResultCode_RESULT_OK, "get task successfully")}, nil
 }
 
 func newServer() *proverService {
@@ -92,9 +93,9 @@ func main() {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
-	go func(workerName string, interval uint64) {
-		proverWorkCycle(workerName, interval)
-	}(*workerName, *proverCycleTime)
+	go func(workerName string, interval uint64, timeout uint64) {
+		proverWorkCycle(workerName, interval, timeout)
+	}(*workerName, *proverCycleTime, *proverTimeout)
 
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterProverServiceServer(grpcServer, newServer())
