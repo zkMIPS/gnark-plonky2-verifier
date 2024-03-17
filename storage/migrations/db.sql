@@ -16,7 +16,8 @@ CREATE TABLE prover_job_queue
 
     proof_id            text      not null,
     computed_request_id text      not null,
-    job_data            json      not null
+    job_data            json      not null,
+    INDEX proof_id_req_id(proof_id(255), computed_request_id(255))
 );
 
 DROP TABLE IF EXISTS proofs;
@@ -25,5 +26,6 @@ CREATE TABLE proofs
     proof_id            text      not null,
     computed_request_id text      not null,
     proof               blob      not null,
-    created_at          timestamp not null default now()
+    created_at          timestamp not null default now(),
+    INDEX proof_id_req_id(proof_id(255), computed_request_id(255))
 );
