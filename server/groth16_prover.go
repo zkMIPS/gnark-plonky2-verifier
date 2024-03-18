@@ -1,12 +1,25 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/profile"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
+	"github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
+	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 	"log"
+	"math/big"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -149,9 +162,150 @@ func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
 		Err:               nil,
 	}
 
+	// remove useless slash
+	cleanInputDir := filepath.Clean(job.SnarkProofRequest.InputDir)
+	cleanOutputDir := filepath.Clean(job.SnarkProofRequest.OutputPath)
 
+	commonCircuitData := types.ReadCommonCircuitData(cleanInputDir + "/common_circuit_data.json")
+	proofWithPis := variables.DeserializeProofWithPublicInputs(
+		types.ReadProofWithPublicInputs(cleanInputDir + "/proof_with_public_inputs.json"))
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
+		types.ReadVerifierOnlyCircuitData(cleanInputDir + "/verifier_only_circuit_data.json"))
 
+	circuit := verifier.ExampleVerifierCircuit{
+		Proof:                   proofWithPis.Proof,
+		PublicInputs:            proofWithPis.PublicInputs,
+		VerifierOnlyCircuitData: verifierOnlyCircuitData,
+		CommonCircuitData:       commonCircuitData,
+	}
+
+	var p *profile.Profile
+	if *profileCircuit {
+		p = profile.Start()
+	}
+
+	var builder frontend.NewBuilder = r1cs.NewBuilder
+
+	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+	if err != nil {
+		res.Err = err
+		ch <- res
+		return
+	}
+
+	if *profileCircuit {
+		p.Stop()
+		p.Top()
+		log.Printf("r1cs.GetNbCoefficients(): %v", r1cs.GetNbCoefficients())
+		log.Printf("r1cs.GetNbConstraints(): %v", r1cs.GetNbConstraints())
+		log.Printf("r1cs.GetNbSecretVariables(): %v", r1cs.GetNbSecretVariables())
+		log.Printf("r1cs.GetNbPublicVariables(): %v", r1cs.GetNbPublicVariables())
+		log.Printf("r1cs.GetNbInternalVariables(): %v", r1cs.GetNbInternalVariables())
+	}
+
+	bytes, err := generateGroth16Proof(r1cs, cleanInputDir, cleanOutputDir)
+	if err != nil {
+		res.Err = err
+		ch <- res
+		return
+	}
+
+	res.ProofBytes = bytes
 	ch <- res
+}
+
+func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, outputDir string) ([]byte, error) {
+	var pk groth16.ProvingKey
+	var vk groth16.VerifyingKey
+	var err error
+
+	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs(inputDir + "/proof_with_public_inputs.json"))
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData(inputDir + "/verifier_only_circuit_data.json"))
+	assignment := verifier.ExampleVerifierCircuit{
+		Proof:                   proofWithPis.Proof,
+		PublicInputs:            proofWithPis.PublicInputs,
+		VerifierOnlyCircuitData: verifierOnlyCircuitData,
+	}
+
+	log.Printf("Running circuit setup: %v", time.Now())
+	log.Printf("Using real setup")
+	pk, vk, err = groth16.Setup(r1cs)
+
+	if err != nil {
+		return nil, err
+	}
+
+	fPK, _ := os.Create(outputDir + "/proving.key")
+	pk.WriteTo(fPK)
+	fPK.Close()
+
+	if vk != nil {
+		fVK, _ := os.Create(outputDir + "/verifying.key")
+		vk.WriteTo(fVK)
+		fVK.Close()
+	}
+
+	log.Printf("Generating witness: %v", time.Now())
+	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	publicWitness, _ := witness.Public()
+
+	fWitness, _ := os.Create(outputDir + "/witness")
+	witness.WriteTo(fWitness)
+	fWitness.Close()
+
+	log.Printf("Creating proof: %v", time.Now())
+	proof, err := groth16.Prove(r1cs, pk, witness)
+	if err != nil {
+		return nil, err
+	}
+
+	fProof, _ := os.Create(outputDir + "/proof.proof")
+	proof.WriteTo(fProof)
+	fProof.Close()
+
+	if vk == nil {
+		return nil, fmt.Errorf("vk is nil, means you're using dummy setup and we skip verification of proof")
+	}
+
+	log.Printf("Verifying proof: %v", time.Now())
+	err = groth16.Verify(proof, vk, publicWitness)
+	if err != nil {
+		return nil, err
+	}
+
+	const fpSize = 4 * 8
+	var buf bytes.Buffer
+	proof.WriteRawTo(&buf)
+	proofBytes := buf.Bytes()
+
+	var (
+		a [2]*big.Int
+		b [2][2]*big.Int
+		c [2]*big.Int
+	)
+
+	// proof.Ar, proof.Bs, proof.Krs
+	a[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
+	a[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
+	b[0][0] = new(big.Int).SetBytes(proofBytes[fpSize*2 : fpSize*3])
+	b[0][1] = new(big.Int).SetBytes(proofBytes[fpSize*3 : fpSize*4])
+	b[1][0] = new(big.Int).SetBytes(proofBytes[fpSize*4 : fpSize*5])
+	b[1][1] = new(big.Int).SetBytes(proofBytes[fpSize*5 : fpSize*6])
+	c[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
+	c[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
+
+	log.Printf("a[0] is %s", a[0].String())
+	log.Printf("a[1] is %s", a[1].String())
+
+	log.Printf("b[0][0] is %s", b[0][0].String())
+	log.Printf("b[0][1] is %s", b[0][1].String())
+	log.Printf("b[1][0] is %s", b[1][0].String())
+	log.Printf("b[1][1] is %s", b[1][1].String())
+
+	log.Printf("c[0] is %s", c[0].String())
+	log.Printf("c[1] is %s", c[1].String())
+
+	return proofBytes, nil
 }
 
 func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
