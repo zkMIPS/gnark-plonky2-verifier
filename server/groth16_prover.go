@@ -164,7 +164,6 @@ func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
 
 	// remove useless slash
 	cleanInputDir := filepath.Clean(job.SnarkProofRequest.InputDir)
-	cleanOutputDir := filepath.Clean(job.SnarkProofRequest.OutputPath)
 
 	commonCircuitData := types.ReadCommonCircuitData(cleanInputDir + "/common_circuit_data.json")
 	proofWithPis := variables.DeserializeProofWithPublicInputs(
@@ -203,7 +202,7 @@ func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
 		log.Printf("r1cs.GetNbInternalVariables(): %v", r1cs.GetNbInternalVariables())
 	}
 
-	bytes, err := generateGroth16Proof(r1cs, cleanInputDir, cleanOutputDir)
+	bytes, err := generateGroth16Proof(r1cs, cleanInputDir, job.SnarkProofRequest.OutputPath)
 	if err != nil {
 		res.Err = err
 		ch <- res
@@ -214,7 +213,7 @@ func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
 	ch <- res
 }
 
-func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, outputDir string) ([]byte, error) {
+func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, outputPath string) ([]byte, error) {
 	var pk groth16.ProvingKey
 	var vk groth16.VerifyingKey
 	var err error
@@ -235,12 +234,12 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		return nil, err
 	}
 
-	fPK, _ := os.Create(outputDir + "/proving.key")
+	fPK, _ := os.Create(inputDir + "/proving.key")
 	pk.WriteTo(fPK)
 	fPK.Close()
 
 	if vk != nil {
-		fVK, _ := os.Create(outputDir + "/verifying.key")
+		fVK, _ := os.Create(inputDir + "/verifying.key")
 		vk.WriteTo(fVK)
 		fVK.Close()
 	}
@@ -249,7 +248,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	publicWitness, _ := witness.Public()
 
-	fWitness, _ := os.Create(outputDir + "/witness")
+	fWitness, _ := os.Create(inputDir + "/witness")
 	witness.WriteTo(fWitness)
 	fWitness.Close()
 
@@ -259,7 +258,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		return nil, err
 	}
 
-	fProof, _ := os.Create(outputDir + "/proof.proof")
+	fProof, _ := os.Create(outputPath)
 	proof.WriteTo(fProof)
 	fProof.Close()
 
