@@ -82,14 +82,13 @@ func newServer() *proverService {
 	return s
 }
 
-func initDatabase() {
+func connectDatabase() {
 	var err error = nil
 	db, err = sql.Open("mysql",
 		fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", *dbUser, *dbPassword, *dbHost, *dbPort, *dbName))
 	if err != nil {
 		log.Fatalf("Failed to ")
 	}
-	defer db.Close()
 }
 
 func main() {
@@ -113,7 +112,8 @@ func main() {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
-	initDatabase()
+	connectDatabase()
+	defer db.Close()
 
 	go func(workerName string, interval uint64, timeout uint64) {
 		proverWorkCycle(workerName, interval, timeout)
