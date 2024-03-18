@@ -17,7 +17,9 @@ CREATE TABLE prover_job_queue
     proof_id            text      not null,
     computed_request_id text      not null,
     job_data            json      not null,
-    INDEX proof_id_req_id(proof_id(255), computed_request_id(255))
+    INDEX proof_id_req_id(proof_id(255), computed_request_id(255)),
+    INDEX job_status_updated_at(job_status, updated_at),
+    INDEX job_type(job_type(255))
 );
 
 DROP TABLE IF EXISTS proofs;
