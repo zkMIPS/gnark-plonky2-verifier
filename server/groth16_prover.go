@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
 	"log"
@@ -28,7 +29,7 @@ const SingleProofJobPriority = 1
 const AggregatedProofJobPriority = 0
 
 type ProverInputResponse struct {
-	JobId             uint64
+	JobId             int
 	SnarkProofRequest *pb.FinalProofRequest
 }
 
@@ -48,7 +49,7 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64) {
 
 		ch := make(chan error)
 
-		go computeProof(ch)
+		go computeProof(resp, ch)
 
 		select {
 		case result := <-ch:
@@ -64,12 +65,64 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64) {
 }
 
 func getJob(proverName string) (ProverInputResponse, error) {
-	// TODO
+	log.Printf("Request stark proof to prove from worker: %s", proverName)
+	if len(proverName) == 0 {
+		return ProverInputResponse{}, fmt.Errorf("empty prover worker name")
+	}
 
-	return ProverInputResponse{SnarkProofRequest: &pb.FinalProofRequest{}}, nil
+	return loadIdleProverJobFromQueue()
 }
 
-func computeProof(ch chan error) {
+func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
+	var resp = ProverInputResponse{}
+	tx, err := db.Begin()
+	if err != nil {
+		return resp, err
+	}
+
+	rows, err := db.Query(
+		"SELECT id,job_data FROM prover_job_queue "+
+			"WHERE job_status = ? ORDER BY job_priority, id, proof_id, computed_request_id LIMIT 1", Idle)
+	if err != nil {
+		tx.Rollback()
+		return resp, err
+	}
+	defer rows.Close()
+
+	if rows.Next() { // if and only if one result
+		var id int
+		var jobData string
+		err := rows.Scan(&id, &jobData)
+		if err != nil {
+			tx.Rollback()
+			return resp, err
+		}
+
+		_, err = db.Exec("UPDATE prover_job_queue SET (job_status, updated_at, updated_by) = "+
+			"?, now(), 'server_give_job') WHERE id = ?", InProgress, id)
+		if err != nil {
+			tx.Rollback()
+			return resp, err
+		}
+
+		proofReq := &pb.FinalProofRequest{}
+
+		if err := jsonpb.UnmarshalString(jobData, proofReq); err != nil {
+			tx.Rollback()
+			return resp, err
+		}
+
+		resp = ProverInputResponse{JobId: id, SnarkProofRequest: proofReq}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return resp, fmt.Errorf("failed to commit transaction for loadIdleProverJobFromQueue")
+	}
+
+	return resp, nil
+}
+
+func computeProof(job ProverInputResponse, ch chan error) {
 	// TODO
 
 	ch <- nil
