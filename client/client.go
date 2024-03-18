@@ -29,7 +29,18 @@ func reqSnarkProof(client pb.ProverServiceClient, req *pb.FinalProofRequest) {
 	defer cancel()
 	resp, err := client.FinalProof(ctx, req)
 	if err != nil {
-		log.Fatalf("client.GetFeature failed: %v", err)
+		log.Fatalf("client.FinalProof failed: %v", err)
+	}
+	log.Printf("resp:%+v", resp)
+}
+
+func getSnarkProofJobTask(client pb.ProverServiceClient, req *pb.GetTaskResultRequest) {
+	log.Printf("Query snark proof job result")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resp, err := client.GetTaskResult(ctx, req)
+	if err != nil {
+		log.Fatalf("client.GetTaskResult failed: %v", err)
 	}
 	log.Printf("resp:%+v", resp)
 }
@@ -61,6 +72,8 @@ func main() {
 	namespace := uuid.New()
 	name := []byte("zkm")
 	u := uuid.NewSHA1(namespace, name)
+
+	// Request snark proof
 	reqSnarkProof(client, &pb.FinalProofRequest{
 		ChainId:           11155111,
 		Timestamp:         uint64(time.Now().Unix()),
@@ -68,5 +81,11 @@ func main() {
 		ComputedRequestId: u.String(),
 		InputDir:          *inputDir,
 		OutputPath:        *outputPath,
+	})
+
+	// Query snark proof
+	getSnarkProofJobTask(client, &pb.GetTaskResultRequest{
+		ProofId:           u.String(),
+		ComputedRequestId: u.String(),
 	})
 }
