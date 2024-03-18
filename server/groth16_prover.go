@@ -33,30 +33,41 @@ type ProverInputResponse struct {
 	SnarkProofRequest *pb.FinalProofRequest
 }
 
+type Groth16ProofResult struct {
+	ProofId           string
+	ComputedRequestId string
+	ProofBytes        []byte
+	Err               error
+}
+
 func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64) {
 	log.Printf("Running worker cycle")
 	for {
 		time.Sleep(time.Duration(interval) * time.Millisecond)
 		log.Printf("Prover cycle started.")
 
-		resp, err := getJob(workerName)
+		job, err := getJob(workerName)
 		if err != nil {
 			log.Printf("Failed to get prover job,err :%+v", err)
 		}
-		if err != nil || resp.SnarkProofRequest == nil {
+		if err != nil || job.SnarkProofRequest == nil {
 			continue
 		}
 
-		ch := make(chan error)
+		ch := make(chan Groth16ProofResult)
 
-		go computeProof(resp, ch)
+		go computeProof(job, ch)
 
 		select {
 		case result := <-ch:
-			if result != nil {
-				log.Printf("Failed to compute groth16 proof,err: %+v", result)
+			if result.Err != nil {
+				log.Printf("Failed to compute groth16 proof,err: %+v", result.Err)
 			} else {
 				log.Printf("groth16 proof was computed.")
+				err := storeProof(job, result)
+				if err != nil {
+					log.Printf("Fialed to store proof,err: %+v", err)
+				}
 			}
 		case <-time.After(time.Duration(proverTimeout) * time.Second):
 			log.Printf("Prover timeout.")
@@ -84,7 +95,9 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 		"SELECT id,job_data FROM prover_job_queue "+
 			"WHERE job_status = ? ORDER BY job_priority, id, proof_id, computed_request_id LIMIT 1", Idle)
 	if err != nil {
-		tx.Rollback()
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return resp, rollbackErr
+		}
 		return resp, err
 	}
 	defer rows.Close()
@@ -94,21 +107,27 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 		var jobData string
 		err := rows.Scan(&id, &jobData)
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return resp, rollbackErr
+			}
 			return resp, err
 		}
 
 		_, err = db.Exec("UPDATE prover_job_queue SET (job_status, updated_at, updated_by) = "+
 			"?, now(), 'server_give_job') WHERE id = ?", InProgress, id)
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return resp, rollbackErr
+			}
 			return resp, err
 		}
 
 		proofReq := &pb.FinalProofRequest{}
 
 		if err := jsonpb.UnmarshalString(jobData, proofReq); err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return resp, rollbackErr
+			}
 			return resp, err
 		}
 
@@ -122,10 +141,57 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 	return resp, nil
 }
 
-func computeProof(job ProverInputResponse, ch chan error) {
-	// TODO
+func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
+	res := Groth16ProofResult{
+		ProofId:           job.SnarkProofRequest.ProofId,
+		ComputedRequestId: job.SnarkProofRequest.ComputedRequestId,
+		ProofBytes:        []byte{},
+		Err:               nil,
+	}
 
-	ch <- nil
+
+
+	ch <- res
+}
+
+func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	updateQuery := "UPDATE prover_job_queue SET (updated_at, job_status, updated_by) = " +
+		"(now(), ?, 'server_finish_job') WHERE id = ? AND job_type = ?"
+	rows, err := db.Exec(updateQuery, Done, job.JobId, SingleProof)
+	if err != nil {
+		return err
+	}
+
+	updatedRows, err := rows.RowsAffected()
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+	if updatedRows != 1 {
+		return fmt.Errorf("missing job for stored proof")
+	}
+
+	insertQuery := "INSERT INTO proofs (proof_id, computed_request_id, proof) VALUES (?, ?, ?)"
+	_, err = db.Exec(insertQuery, proof.ProofId, proof.ComputedRequestId, proof.ProofBytes)
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction for storeProof")
+	}
+
+	return nil
 }
 
 func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Result {
@@ -157,7 +223,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	}
 	defer rows.Close()
 
-	if rows.Next() { // only one result
+	if rows.Next() { // if and only if one result
 		if err != nil {
 			formatStr := "Failed to query prover job status result, err: %+v"
 			log.Printf(formatStr, err)
