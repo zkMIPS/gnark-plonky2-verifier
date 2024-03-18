@@ -25,6 +25,7 @@ CREATE TABLE prover_job_queue
 DROP TABLE IF EXISTS proofs;
 CREATE TABLE proofs
 (
+    id                  serial primary key,
     proof_id            text      not null,
     computed_request_id text      not null,
     proof               blob      not null,

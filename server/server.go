@@ -29,6 +29,8 @@ var (
 	dbHost          = flag.String("db_host", "127.0.0.1", "The datbase host")
 	dbPort          = flag.String("db_port", "3306", "The database port")
 	dbName          = flag.String("db_name", "zkm", "The database name")
+
+	profileCircuit = flag.Bool("profile", false, "profile the circuit")
 )
 
 var db *sql.DB = nil
