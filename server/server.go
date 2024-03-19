@@ -23,6 +23,7 @@ var (
 	port            = flag.Int("port", 50051, "The server port")
 	workerName      = flag.String("prover_worker_name", "groth16_prover", "The prover worker name")
 	proverCycleTime = flag.Uint64("prover_cycle_time", 1000, "The prover cycle time")
+	proverHeartBeat = flag.Uint64("prover_heart_beat", 2000, "The prover heart beat")
 	proverTimeout   = flag.Uint64("prover_time_out", 60*60, "The prover time out")
 	dbUser          = flag.String("db_user", "root", "The database username")
 	dbPassword      = flag.String("db_password", "123456", "The database password")
@@ -117,9 +118,9 @@ func main() {
 	connectDatabase()
 	defer db.Close()
 
-	go func(workerName string, interval uint64, timeout uint64) {
-		proverWorkCycle(workerName, interval, timeout)
-	}(*workerName, *proverCycleTime, *proverTimeout)
+	go func(workerName string, interval uint64, timeout uint64, heartBeat uint64) {
+		proverWorkCycle(workerName, interval, timeout, heartBeat)
+	}(*workerName, *proverCycleTime, *proverTimeout, *proverHeartBeat)
 
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterProverServiceServer(grpcServer, newServer())

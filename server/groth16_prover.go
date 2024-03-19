@@ -53,7 +53,7 @@ type Groth16ProofResult struct {
 	Err               error
 }
 
-func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64) {
+func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, heartBeat uint64) {
 	log.Printf("Running worker cycle")
 	for {
 		time.Sleep(time.Duration(interval) * time.Millisecond)
@@ -69,7 +69,7 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64) {
 
 		ch := make(chan Groth16ProofResult)
 
-		go computeProof(job, ch)
+		go computeProof(job, workerName, ch, heartBeat)
 
 		select {
 		case result := <-ch:
@@ -154,7 +154,14 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 	return resp, nil
 }
 
-func computeProof(job ProverInputResponse, ch chan Groth16ProofResult) {
+func computeProof(job ProverInputResponse, proverName string, ch chan Groth16ProofResult, heartBeat uint64) {
+	go func() {
+		for {
+			time.Sleep(time.Duration(heartBeat) * time.Millisecond)
+			recordProverIsWorking(job.JobId, proverName)
+		}
+	}()
+
 	res := Groth16ProofResult{
 		ProofId:           job.SnarkProofRequest.ProofId,
 		ComputedRequestId: job.SnarkProofRequest.ComputedRequestId,
@@ -305,6 +312,17 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	log.Printf("c[1] is %s", c[1].String())
 
 	return proofBytes, nil
+}
+
+func recordProverIsWorking(jobId int, proverName string) error {
+	updateQuery := "UPDATE prover_job_queue SET (updated_at, updated_by) = (now(), ?) WHERE id = ?"
+	_, err := db.Exec(updateQuery, proverName, jobId)
+	if err != nil {
+		log.Printf("Failed to recordProverIsWorking,err: %+v", err)
+		return err
+	}
+
+	return nil
 }
 
 func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
