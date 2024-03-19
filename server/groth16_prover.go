@@ -154,6 +154,7 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 	return resp, nil
 }
 
+
 func computeProof(job ProverInputResponse, proverName string, ch chan Groth16ProofResult, heartBeat uint64) {
 	go func() {
 		for {
