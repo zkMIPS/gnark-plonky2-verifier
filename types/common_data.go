@@ -58,10 +58,10 @@ type CommonCircuitDataRaw struct {
 	NumPartialProducts   uint64   `json:"num_partial_products"`
 }
 
-func ReadCommonCircuitData(path string) CommonCircuitData {
+func ReadCommonCircuitData(path string) (CommonCircuitData, error) {
 	jsonFile, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		return CommonCircuitData{}, err
 	}
 
 	defer jsonFile.Close()
@@ -70,7 +70,7 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	var raw CommonCircuitDataRaw
 	err = json.Unmarshal(rawBytes, &raw)
 	if err != nil {
-		panic(err)
+		return CommonCircuitData{}, err
 	}
 
 	var commonCircuitData CommonCircuitData
@@ -118,5 +118,5 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	commonCircuitData.KIs = raw.KIs
 	commonCircuitData.NumPartialProducts = raw.NumPartialProducts
 
-	return commonCircuitData
+	return commonCircuitData, nil
 }

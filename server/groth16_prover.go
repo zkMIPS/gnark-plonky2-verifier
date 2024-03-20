@@ -11,7 +11,6 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/profile"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
@@ -126,8 +125,8 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 			return resp, err
 		}
 
-		_, err = db.Exec("UPDATE prover_job_queue SET (job_status, updated_at, updated_by) = "+
-			"?, now(), 'server_give_job') WHERE id = ?", InProgress, id)
+		_, err = db.Exec("UPDATE prover_job_queue "+
+			"SET job_status=?,updated_at=now(),updated_by='server_give_job' WHERE id=?", InProgress, id)
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
 				return resp, rollbackErr
@@ -154,7 +153,6 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 	return resp, nil
 }
 
-
 func computeProof(job ProverInputResponse, proverName string, ch chan Groth16ProofResult, heartBeat uint64) {
 	go func() {
 		for {
@@ -173,11 +171,28 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	// remove useless slash
 	cleanInputDir := filepath.Clean(job.SnarkProofRequest.InputDir)
 
-	commonCircuitData := types.ReadCommonCircuitData(cleanInputDir + "/common_circuit_data.json")
-	proofWithPis := variables.DeserializeProofWithPublicInputs(
-		types.ReadProofWithPublicInputs(cleanInputDir + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
-		types.ReadVerifierOnlyCircuitData(cleanInputDir + "/verifier_only_circuit_data.json"))
+	commonCircuitData, err := types.ReadCommonCircuitData(cleanInputDir + "/common_circuit_data.json")
+	if err != nil {
+		res.Err = err
+		ch <- res
+		return
+	}
+
+	proofWithPisData, err := types.ReadProofWithPublicInputs(cleanInputDir + "/proof_with_public_inputs.json")
+	if err != nil {
+		res.Err = err
+		ch <- res
+		return
+	}
+	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
+
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData(cleanInputDir + "/verifier_only_circuit_data.json")
+	if err != nil {
+		res.Err = err
+		ch <- res
+		return
+	}
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 	circuit := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
@@ -226,8 +241,16 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	var vk groth16.VerifyingKey
 	var err error
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs(inputDir + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData(inputDir + "/verifier_only_circuit_data.json"))
+	proofWithPisRawdata, err := types.ReadProofWithPublicInputs(inputDir + "/proof_with_public_inputs.json")
+	if err != nil {
+		return nil, err
+	}
+	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisRawdata)
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData(inputDir + "/verifier_only_circuit_data.json")
+	if err != nil {
+		return nil, err
+	}
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -316,7 +339,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 }
 
 func recordProverIsWorking(jobId int, proverName string) error {
-	updateQuery := "UPDATE prover_job_queue SET (updated_at, updated_by) = (now(), ?) WHERE id = ?"
+	updateQuery := "UPDATE prover_job_queue SET updated_at = now(),updated_by = ? WHERE id = ?"
 	_, err := db.Exec(updateQuery, proverName, jobId)
 	if err != nil {
 		log.Printf("Failed to recordProverIsWorking,err: %+v", err)
@@ -366,15 +389,46 @@ func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
 	return nil
 }
 
+func checkStarkProofExists(req *pb.FinalProofRequest) error {
+	cleanInputDir := filepath.Clean(req.InputDir)
+
+	commonCircuitFile := cleanInputDir + "/common_circuit_data.json"
+	_, err := os.Stat(commonCircuitFile)
+	if err != nil {
+		return fmt.Errorf("file:%s not found", commonCircuitFile)
+	}
+
+	proofWithPublicInputsFile := cleanInputDir + "/proof_with_public_inputs.json"
+	_, err = os.Stat(proofWithPublicInputsFile)
+	if err != nil {
+		return fmt.Errorf("file:%s not found", proofWithPublicInputsFile)
+	}
+
+	verifierOnlyCircuitDataFile := cleanInputDir + "/verifier_only_circuit_data.json"
+	_, err = os.Stat(verifierOnlyCircuitDataFile)
+	if err != nil {
+		return fmt.Errorf("file:%s not found", verifierOnlyCircuitDataFile)
+	}
+
+	return nil
+}
+
 func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Result {
-	jobData, err := proto.Marshal(req)
+	marshaller := jsonpb.Marshaler{}
+	jobData, err := marshaller.MarshalToString(req)
+	if err != nil {
+		formatStr := "Failed to addProverJobToQueue,err: %+v"
+		log.Printf(formatStr, err)
+		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+	}
+	err = checkStarkProofExists(req)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		log.Printf(formatStr, err)
 		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	insertQuery := "INSERT INTO prover_job_queue (job_status, job_priority, job_type, updated_by, proof_id, computed_request_id, job_data) VALUES(?,?,?,?,?,?,?)"
-	_, err = db.Exec(insertQuery, Idle, SingleProofJobPriority, SingleProof, "server_add_job", req.ProofId, req.ComputedRequestId, string(jobData))
+	_, err = db.Exec(insertQuery, Idle, SingleProofJobPriority, SingleProof, "server_add_job", req.ProofId, req.ComputedRequestId, jobData)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		log.Printf(formatStr, err)

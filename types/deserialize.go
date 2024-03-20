@@ -89,10 +89,10 @@ type VerifierOnlyCircuitDataRaw struct {
 	CircuitDigest      string   `json:"circuit_digest"`
 }
 
-func ReadProofWithPublicInputs(path string) ProofWithPublicInputsRaw {
+func ReadProofWithPublicInputs(path string) (ProofWithPublicInputsRaw, error) {
 	jsonFile, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		return ProofWithPublicInputsRaw{}, err
 	}
 
 	defer jsonFile.Close()
@@ -101,16 +101,16 @@ func ReadProofWithPublicInputs(path string) ProofWithPublicInputsRaw {
 	var raw ProofWithPublicInputsRaw
 	err = json.Unmarshal(rawBytes, &raw)
 	if err != nil {
-		panic(err)
+		return ProofWithPublicInputsRaw{}, err
 	}
 
-	return raw
+	return raw, nil
 }
 
-func ReadVerifierOnlyCircuitData(path string) VerifierOnlyCircuitDataRaw {
+func ReadVerifierOnlyCircuitData(path string) (VerifierOnlyCircuitDataRaw, error) {
 	jsonFile, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		return VerifierOnlyCircuitDataRaw{}, err
 	}
 
 	defer jsonFile.Close()
@@ -119,8 +119,8 @@ func ReadVerifierOnlyCircuitData(path string) VerifierOnlyCircuitDataRaw {
 	var raw VerifierOnlyCircuitDataRaw
 	err = json.Unmarshal(rawBytes, &raw)
 	if err != nil {
-		panic(err)
+		return VerifierOnlyCircuitDataRaw{}, err
 	}
 
-	return raw
+	return raw, nil
 }
