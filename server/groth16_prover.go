@@ -30,11 +30,11 @@ const (
 	Done
 )
 
-type ProverJobType int
+type ProverJobType string
 
 const (
-	SingleProof ProverJobType = iota
-	AggregatedProof
+	SingleProof ProverJobType = "SINGLE_PROOF"
+	AggregatedProof ProverJobType = "AGGREGATED_PROOF"
 )
 
 const SingleProofJobPriority = 1
@@ -355,8 +355,7 @@ func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
 		return err
 	}
 
-	updateQuery := "UPDATE prover_job_queue SET (updated_at, job_status, updated_by) = " +
-		"(now(), ?, 'server_finish_job') WHERE id = ? AND job_type = ?"
+	updateQuery := "UPDATE prover_job_queue SET updated_at=now(),job_status=?,updated_by='server_finish_job' WHERE id = ? AND job_type = ?"
 	rows, err := db.Exec(updateQuery, Done, job.JobId, SingleProof)
 	if err != nil {
 		return err
