@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/succinctlabs/gnark-plonky2-verifier/certificate/data"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"log"
 	"net"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,6 +34,7 @@ var (
 	dbHost          = flag.String("db_host", "127.0.0.1", "The datbase host")
 	dbPort          = flag.String("db_port", "3306", "The database port")
 	dbName          = flag.String("db_name", "zkm", "The database name")
+	logLevel        = flag.Uint64("log_level", uint64(log.InfoLevel), "The log level")
 
 	profileCircuit = flag.Bool("profile", false, "profile the circuit")
 )
@@ -94,8 +99,27 @@ func connectDatabase() {
 	}
 }
 
-func main() {
+func init() {
 	flag.Parse()
+
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.Level(uint32(*logLevel)))
+}
+
+func logger() *log.Entry {
+	pc, file, line, ok := runtime.Caller(1)
+	if !ok {
+		panic("Could not get context info for logger!")
+	}
+
+	filename := file[strings.LastIndex(file, "/")+1:] + ":" + strconv.Itoa(line)
+	funcname := runtime.FuncForPC(pc).Name()
+	fn := funcname[strings.LastIndex(funcname, ".")+1:]
+	return log.WithField("file", filename).WithField("function", fn)
+}
+
+func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
