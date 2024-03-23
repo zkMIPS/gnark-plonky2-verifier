@@ -15,7 +15,6 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
-	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -53,14 +52,14 @@ type Groth16ProofResult struct {
 }
 
 func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, heartBeat uint64) {
-	log.Printf("Running worker cycle")
+	logger().Infof("Running worker cycle")
 	for {
 		time.Sleep(time.Duration(interval) * time.Millisecond)
-		log.Printf("Prover cycle started.")
+		logger().Infof("Prover cycle started.")
 
 		job, err := getJob(workerName)
 		if err != nil {
-			log.Printf("Failed to get prover job,err :%+v", err)
+			logger().Errorf("Failed to get prover job,err :%+v", err)
 		}
 		if err != nil || job.SnarkProofRequest == nil {
 			continue
@@ -73,22 +72,22 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, h
 		select {
 		case result := <-ch:
 			if result.Err != nil {
-				log.Printf("Failed to compute groth16 proof,err: %+v", result.Err)
+				logger().Errorf("Failed to compute groth16 proof,err: %+v", result.Err)
 			} else {
-				log.Printf("groth16 proof was computed.")
+				logger().Infof("groth16 proof was computed.")
 				err := storeProof(job, result)
 				if err != nil {
-					log.Printf("Fialed to store proof,err: %+v", err)
+					logger().Infof("Fialed to store proof,err: %+v", err)
 				}
 			}
 		case <-time.After(time.Duration(proverTimeout) * time.Second):
-			log.Printf("Prover timeout.")
+			logger().Warnf("Prover timeout.")
 		}
 	}
 }
 
 func getJob(proverName string) (ProverInputResponse, error) {
-	log.Printf("Request stark proof to prove from worker: %s", proverName)
+	logger().Infof("Request stark proof to prove from worker: %s", proverName)
 	if len(proverName) == 0 {
 		return ProverInputResponse{}, fmt.Errorf("empty prover worker name")
 	}
@@ -218,11 +217,11 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	if *profileCircuit {
 		p.Stop()
 		p.Top()
-		log.Printf("r1cs.GetNbCoefficients(): %v", r1cs.GetNbCoefficients())
-		log.Printf("r1cs.GetNbConstraints(): %v", r1cs.GetNbConstraints())
-		log.Printf("r1cs.GetNbSecretVariables(): %v", r1cs.GetNbSecretVariables())
-		log.Printf("r1cs.GetNbPublicVariables(): %v", r1cs.GetNbPublicVariables())
-		log.Printf("r1cs.GetNbInternalVariables(): %v", r1cs.GetNbInternalVariables())
+		logger().Infof("r1cs.GetNbCoefficients(): %v", r1cs.GetNbCoefficients())
+		logger().Infof("r1cs.GetNbConstraints(): %v", r1cs.GetNbConstraints())
+		logger().Infof("r1cs.GetNbSecretVariables(): %v", r1cs.GetNbSecretVariables())
+		logger().Infof("r1cs.GetNbPublicVariables(): %v", r1cs.GetNbPublicVariables())
+		logger().Infof("r1cs.GetNbInternalVariables(): %v", r1cs.GetNbInternalVariables())
 	}
 
 	bytes, err := generateGroth16Proof(r1cs, cleanInputDir, job.SnarkProofRequest.OutputPath)
@@ -257,8 +256,8 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
 	}
 
-	log.Printf("Running circuit setup: %v", time.Now())
-	log.Printf("Using real setup")
+	logger().Infof("Running circuit setup: %v", time.Now())
+	logger().Infof("Using real setup")
 	pk, vk, err = groth16.Setup(r1cs)
 
 	if err != nil {
@@ -275,7 +274,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		fVK.Close()
 	}
 
-	log.Printf("Generating witness: %v", time.Now())
+	logger().Infof("Generating witness: %v", time.Now())
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	publicWitness, _ := witness.Public()
 
@@ -283,7 +282,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	witness.WriteTo(fWitness)
 	fWitness.Close()
 
-	log.Printf("Creating proof: %v", time.Now())
+	logger().Infof("Creating proof: %v", time.Now())
 	proof, err := groth16.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, err
@@ -297,7 +296,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		return nil, fmt.Errorf("vk is nil, means you're using dummy setup and we skip verification of proof")
 	}
 
-	log.Printf("Verifying proof: %v", time.Now())
+	logger().Infof("Verifying proof: %v", time.Now())
 	err = groth16.Verify(proof, vk, publicWitness)
 	if err != nil {
 		return nil, err
@@ -324,16 +323,16 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	c[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
 	c[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
 
-	log.Printf("a[0] is %s", a[0].String())
-	log.Printf("a[1] is %s", a[1].String())
+	logger().Infof("a[0] is %s", a[0].String())
+	logger().Infof("a[1] is %s", a[1].String())
 
-	log.Printf("b[0][0] is %s", b[0][0].String())
-	log.Printf("b[0][1] is %s", b[0][1].String())
-	log.Printf("b[1][0] is %s", b[1][0].String())
-	log.Printf("b[1][1] is %s", b[1][1].String())
+	logger().Infof("b[0][0] is %s", b[0][0].String())
+	logger().Infof("b[0][1] is %s", b[0][1].String())
+	logger().Infof("b[1][0] is %s", b[1][0].String())
+	logger().Infof("b[1][1] is %s", b[1][1].String())
 
-	log.Printf("c[0] is %s", c[0].String())
-	log.Printf("c[1] is %s", c[1].String())
+	logger().Infof("c[0] is %s", c[0].String())
+	logger().Infof("c[1] is %s", c[1].String())
 
 	return proofBytes, nil
 }
@@ -342,7 +341,7 @@ func recordProverIsWorking(jobId int, proverName string) error {
 	updateQuery := "UPDATE prover_job_queue SET updated_at = now(),updated_by = ? WHERE id = ?"
 	_, err := db.Exec(updateQuery, proverName, jobId)
 	if err != nil {
-		log.Printf("Failed to recordProverIsWorking,err: %+v", err)
+		logger().Errorf("Failed to recordProverIsWorking,err: %+v", err)
 		return err
 	}
 
@@ -417,20 +416,20 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 	jobData, err := marshaller.MarshalToString(req)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
-		log.Printf(formatStr, err)
+		logger().Errorf(formatStr, err)
 		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	err = checkStarkProofExists(req)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
-		log.Printf(formatStr, err)
+		logger().Errorf(formatStr, err)
 		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	insertQuery := "INSERT INTO prover_job_queue (job_status, job_priority, job_type, updated_by, proof_id, computed_request_id, job_data) VALUES(?,?,?,?,?,?,?)"
 	_, err = db.Exec(insertQuery, Idle, SingleProofJobPriority, SingleProof, "server_add_job", req.ProofId, req.ComputedRequestId, jobData)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
-		log.Printf(formatStr, err)
+		logger().Errorf(formatStr, err)
 		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 	}
 
@@ -443,7 +442,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	rows, err := db.Query(query, req.ProofId, req.ComputedRequestId)
 	if err != nil {
 		formatStr := "Failed to query proofs db, err: %+v"
-		log.Printf(formatStr, err)
+		logger().Errorf(formatStr, err)
 		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	defer rows.Close()
@@ -451,7 +450,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	if rows.Next() { // if and only if one result
 		if err != nil {
 			formatStr := "Failed to query prover job status result, err: %+v"
-			log.Printf(formatStr, err)
+			logger().Errorf(formatStr, err)
 			return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
 		}
 		return getSuccessResult("proofs was generated successfully.")
