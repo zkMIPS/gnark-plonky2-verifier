@@ -2,8 +2,7 @@ CREATE DATABASE IF NOT EXISTS zkm;
 
 use zkm;
 
-DROP TABLE IF EXISTS prover_job_queue;
-CREATE TABLE prover_job_queue
+CREATE TABLE IF NOT EXISTS prover_job_queue
 (
     id                  serial primary key,
     job_status          int       not null,
@@ -22,8 +21,7 @@ CREATE TABLE prover_job_queue
     INDEX job_type(job_type(255))
 );
 
-DROP TABLE IF EXISTS proofs;
-CREATE TABLE proofs
+CREATE TABLE IF NOT EXISTS proofs
 (
     id                  serial primary key,
     proof_id            text      not null,
@@ -32,3 +30,10 @@ CREATE TABLE proofs
     created_at          timestamp not null default now(),
     INDEX proof_id_req_id(proof_id(255), computed_request_id(255))
 );
+
+use mysql;
+
+ALTER user 'root'@'localhost' IDENTIFIED BY '123456';
+UPDATE user SET plugin='mysql_native_password' WHERE User='root';
+
+FLUSH PRIVILEGES;
