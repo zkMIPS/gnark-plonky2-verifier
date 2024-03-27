@@ -29,8 +29,6 @@ RUN apt-get update && apt-get install -y mysql-server && apt-get install -y mysq
 # set up MySQL root password
 ENV MYSQL_ROOT_PASSWORD 123456
 
-WORKDIR /app
-
 COPY my.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
 COPY    storage/migrations/db.sql /SQL
 RUN     mysqld_safe & until mysqladmin ping; do sleep 1; done && \
@@ -40,15 +38,15 @@ RUN service mysql restart
 COPY . .
 ENV GOOS linux
 ENV GOARCH amd64
-RUN GOOS=linux GOARCH=amd64 go build -o /app/server/server ./server
+RUN GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/snark_server ./server
+RUN mkdir -p /app/server
 RUN touch /app/server/server.log
-RUN chmod a+x /app/server/server
-RUN echo "nohup /app/server/server -prover_cycle_time=15000 -log_level=4 > /app/server/server.log 2>&1 &" > /app/start.sh
-RUN chmod a+x /app/start.sh
+RUN chmod a+x /usr/local/bin/snark_server
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod a+x /usr/local/bin/start.sh
 
 # expose mysql,server port
 EXPOSE 3306 50051
 
 # Set the command to be executed when the container starts
-CMD ["mysqld"]
-#CMD ["nohup /app/server/server -prover_cycle_time=15000 -log_level=4 > /app/server/server.log 2>&1 &"]
+ENTRYPOINT ["/usr/local/bin/start.sh"]
