@@ -48,5 +48,7 @@ RUN chmod a+x /usr/local/bin/start.sh
 # expose mysql,server port
 EXPOSE 3306 50051
 
+CMD source /usr/local/bin/start.sh
+
 # Set the command to be executed when the container starts
 ENTRYPOINT ["/usr/local/bin/start.sh"]
