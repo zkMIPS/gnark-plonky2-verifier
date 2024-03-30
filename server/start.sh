@@ -1,0 +1,1 @@
+nohup /root/Documents/golang_workspace/src/github.com/zkMIPS/gnark-plonky2-verifier/server/server -prover_cycle_time=15000 -log_level=4 > /root/Documents/golang_workspace/src/github.com/zkMIPS/gnark-plonky2-verifier/server/server.log 2>&1 &
