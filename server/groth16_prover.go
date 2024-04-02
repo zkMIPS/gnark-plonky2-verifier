@@ -67,6 +67,7 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, h
 
 		ch := make(chan Groth16ProofResult)
 
+		start := time.Now()
 		go computeProof(job, workerName, ch, heartBeat)
 
 		select {
@@ -74,6 +75,7 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, h
 			if result.Err != nil {
 				logger().Errorf("Failed to compute groth16 proof,err: %+v", result.Err)
 			} else {
+				logger().Infof("computeProof cost time: %v ms", time.Now().Sub(start).Milliseconds())
 				logger().Infof("groth16 proof was computed.")
 				err := storeProof(job, result)
 				if err != nil {
