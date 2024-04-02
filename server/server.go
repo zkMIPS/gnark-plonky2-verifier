@@ -5,9 +5,17 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	log "github.com/sirupsen/logrus"
 	"github.com/succinctlabs/gnark-plonky2-verifier/certificate/data"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
+	"github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
+	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"net"
@@ -35,8 +43,16 @@ var (
 	dbPort          = flag.String("db_port", "3306", "The database port")
 	dbName          = flag.String("db_name", "zkm", "The database name")
 	logLevel        = flag.Uint64("log_level", uint64(log.InfoLevel), "The log level")
+	cacheDir        = flag.String("cache_dir", "/efs/zkm/test/test_proof/proof/f14489bf-a991-4733-8ab0-29e5625f4a04/aggregate", "The circut and key cache dir")
 
 	profileCircuit = flag.Bool("profile", false, "profile the circuit")
+)
+
+var (
+	r1cs_circuit constraint.ConstraintSystem
+
+	pk groth16.ProvingKey
+	vk groth16.VerifyingKey
 )
 
 var db *sql.DB = nil
@@ -99,12 +115,108 @@ func connectDatabase() {
 	}
 }
 
+func initCircuitKeys() {
+	if r1cs_circuit != nil {
+		return
+	}
+
+	circuitPath := *cacheDir + "/circuit"
+	pkPath := *cacheDir + "/proving.key"
+	vkPath := *cacheDir + "/verifying.key"
+
+	_, err := os.Stat(circuitPath)
+
+	// generate circuit if it is not exist by precomputed proof
+	if os.IsNotExist(err) {
+		commonCircuitData, err := types.ReadCommonCircuitData(*cacheDir + "/common_circuit_data.json")
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+
+		proofWithPisData, err := types.ReadProofWithPublicInputs(*cacheDir  + "/proof_with_public_inputs.json")
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+		proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
+
+		verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData(*cacheDir + "/verifier_only_circuit_data.json")
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+		verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
+
+		circuit := verifier.ExampleVerifierCircuit{
+			Proof:                   proofWithPis.Proof,
+			PublicInputs:            proofWithPis.PublicInputs,
+			VerifierOnlyCircuitData: verifierOnlyCircuitData,
+			CommonCircuitData:       commonCircuitData,
+		}
+
+		var builder frontend.NewBuilder = r1cs.NewBuilder
+		r1cs_circuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+		fR1CS, _ := os.Create(circuitPath)
+		r1cs_circuit.WriteTo(fR1CS)
+		fR1CS.Close()
+	} else {
+		fCircuit, err := os.Open(circuitPath)
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+
+		r1cs_circuit = groth16.NewCS(ecc.BN254)
+		r1cs_circuit.ReadFrom(fCircuit)
+		fCircuit.Close()
+	}
+
+	_, err = os.Stat(pkPath)
+	if os.IsNotExist(err) {
+		pk, vk, err = groth16.Setup(r1cs_circuit)
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+
+		fPK, _ := os.Create(pkPath)
+		pk.WriteTo(fPK)
+		fPK.Close()
+
+		if vk != nil {
+			fVK, _ := os.Create(vkPath)
+			vk.WriteTo(fVK)
+			fVK.Close()
+		}
+	} else {
+		fPk, err := os.Open(pkPath)
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+		pk = groth16.NewProvingKey(ecc.BN254)
+		pk.ReadFrom(fPk)
+
+		fVk, err := os.Open(vkPath)
+		if err != nil {
+			logger().Errorln(err)
+			return
+		}
+		vk = groth16.NewVerifyingKey(ecc.BN254)
+		vk.ReadFrom(fVk)
+		defer fVk.Close()
+	}
+}
+
 func init() {
 	flag.Parse()
 
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.Level(uint32(*logLevel)))
+
+	initCircuitKeys()
 }
 
 func logger() *log.Entry {

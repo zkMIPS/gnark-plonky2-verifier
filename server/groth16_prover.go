@@ -32,7 +32,7 @@ const (
 type ProverJobType string
 
 const (
-	SingleProof ProverJobType = "SINGLE_PROOF"
+	SingleProof     ProverJobType = "SINGLE_PROOF"
 	AggregatedProof ProverJobType = "AGGREGATED_PROOF"
 )
 
@@ -170,6 +170,20 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	// remove useless slash
 	cleanInputDir := filepath.Clean(job.SnarkProofRequest.InputDir)
 
+	if r1cs_circuit != nil && pk != nil && vk != nil { // has cache
+		bytes, err := generateGroth16ProofWithCache(r1cs_circuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
+		if err != nil {
+			res.Err = err
+			ch <- res
+			return
+		}
+
+		res.ProofBytes = bytes
+		ch <- res
+		return
+	}
+
+	// without cache
 	commonCircuitData, err := types.ReadCommonCircuitData(cleanInputDir + "/common_circuit_data.json")
 	if err != nil {
 		res.Err = err
@@ -209,7 +223,7 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 
 	start := time.Now()
 	logger().Infof("frontend.Compile: %v", start)
-	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+	r1cs_circuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
 	logger().Infof("frontend.Compile cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		res.Err = err
@@ -217,17 +231,21 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 		return
 	}
 
+	fR1CS, _ := os.Create(*cacheDir + "/circuit")
+	r1cs_circuit.WriteTo(fR1CS)
+	fR1CS.Close()
+
 	if *profileCircuit {
 		p.Stop()
 		p.Top()
-		logger().Infof("r1cs.GetNbCoefficients(): %v", r1cs.GetNbCoefficients())
-		logger().Infof("r1cs.GetNbConstraints(): %v", r1cs.GetNbConstraints())
-		logger().Infof("r1cs.GetNbSecretVariables(): %v", r1cs.GetNbSecretVariables())
-		logger().Infof("r1cs.GetNbPublicVariables(): %v", r1cs.GetNbPublicVariables())
-		logger().Infof("r1cs.GetNbInternalVariables(): %v", r1cs.GetNbInternalVariables())
+		logger().Infof("r1cs.GetNbCoefficients(): %v", r1cs_circuit.GetNbCoefficients())
+		logger().Infof("r1cs.GetNbConstraints(): %v", r1cs_circuit.GetNbConstraints())
+		logger().Infof("r1cs.GetNbSecretVariables(): %v", r1cs_circuit.GetNbSecretVariables())
+		logger().Infof("r1cs.GetNbPublicVariables(): %v", r1cs_circuit.GetNbPublicVariables())
+		logger().Infof("r1cs.GetNbInternalVariables(): %v", r1cs_circuit.GetNbInternalVariables())
 	}
 
-	bytes, err := generateGroth16Proof(r1cs, cleanInputDir, job.SnarkProofRequest.OutputPath)
+	bytes, err := generateGroth16Proof(r1cs_circuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
 	if err != nil {
 		res.Err = err
 		ch <- res
@@ -238,19 +256,17 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	ch <- res
 }
 
-func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, outputPath string) ([]byte, error) {
-	var pk groth16.ProvingKey
-	var vk groth16.VerifyingKey
+func getWitness(inputDir string) (verifier.ExampleVerifierCircuit, error) {
 	var err error
 
 	proofWithPisRawdata, err := types.ReadProofWithPublicInputs(inputDir + "/proof_with_public_inputs.json")
 	if err != nil {
-		return nil, err
+		return verifier.ExampleVerifierCircuit{}, err
 	}
 	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisRawdata)
 	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData(inputDir + "/verifier_only_circuit_data.json")
 	if err != nil {
-		return nil, err
+		return verifier.ExampleVerifierCircuit{}, err
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
@@ -258,17 +274,10 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
 	}
+	return assignment, nil
+}
 
-	start := time.Now()
-	logger().Infof("Running circuit setup: %v", time.Now())
-	logger().Infof("Using real setup")
-	pk, vk, err = groth16.Setup(r1cs)
-	logger().Infof("groth16.Setup cost time: %v ms", time.Now().Sub(start).Milliseconds())
-
-	if err != nil {
-		return nil, err
-	}
-
+func generateProof(inputDir string, outputPath string, assignment verifier.ExampleVerifierCircuit, r1cs constraint.ConstraintSystem) ([]byte, error) {
 	fPK, _ := os.Create(inputDir + "/proving.key")
 	pk.WriteTo(fPK)
 	fPK.Close()
@@ -279,7 +288,7 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		fVK.Close()
 	}
 
-	start = time.Now()
+	start := time.Now()
 	logger().Infof("Generating witness: %v", start)
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	logger().Infof("frontend.NewWitness cost time: %v ms", time.Now().Sub(start).Milliseconds())
@@ -348,9 +357,47 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 	return proofBytes, nil
 }
 
+func generateGroth16ProofWithCache(r1cs constraint.ConstraintSystem, inputDir string, outputPath string) ([]byte, error) {
+	assignment, err := getWitness(inputDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return generateProof(inputDir, outputPath, assignment, r1cs)
+}
+
+func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, outputPath string) ([]byte, error) {
+	assignment, err := getWitness(inputDir)
+	if err != nil {
+		return nil, err
+	}
+
+	start := time.Now()
+	logger().Infof("Running circuit setup: %v", time.Now())
+	logger().Infof("Using real setup")
+	pk, vk, err = groth16.Setup(r1cs)
+	logger().Infof("groth16.Setup cost time: %v ms", time.Now().Sub(start).Milliseconds())
+
+	if err != nil {
+		return nil, err
+	}
+
+	fPK, _ := os.Create(*cacheDir + "/proving.key")
+	pk.WriteTo(fPK)
+	fPK.Close()
+
+	if vk != nil {
+		fVK, _ := os.Create(*cacheDir + "/verifying.key")
+		vk.WriteTo(fVK)
+		fVK.Close()
+	}
+
+	return generateProof(inputDir, outputPath, assignment, r1cs)
+}
+
 func recordProverIsWorking(jobId int, proverName string) error {
-	updateQuery := "UPDATE prover_job_queue SET updated_at = now(),updated_by = ? WHERE id = ?"
-	_, err := db.Exec(updateQuery, proverName, jobId)
+	updateQuery := "UPDATE prover_job_queue SET updated_at = now(),updated_by = ? WHERE id = ? AND job_status != ?"
+	_, err := db.Exec(updateQuery, proverName, jobId, Done)
 	if err != nil {
 		logger().Errorf("Failed to recordProverIsWorking,err: %+v", err)
 		return err
