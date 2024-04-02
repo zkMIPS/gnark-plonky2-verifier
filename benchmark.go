@@ -51,7 +51,10 @@ func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool
 		os.Exit(1)
 	}
 
+	start := time.Now()
+	fmt.Printf("frontend.Compile: %v\n", start)
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+	fmt.Printf("frontend.Compile cost time: %v ms\n", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		fmt.Println("error in building circuit", err)
 		os.Exit(1)
@@ -186,7 +189,8 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	// 	fR1CS.Close()
 	// }
 
-	fmt.Println("Running circuit setup", time.Now())
+	start := time.Now()
+	fmt.Println("Running circuit setup", start)
 	if dummy {
 		fmt.Println("Using dummy setup")
 		pk, err = groth16.DummySetup(r1cs)
@@ -194,6 +198,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		fmt.Println("Using real setup")
 		pk, vk, err = groth16.Setup(r1cs)
 	}
+	fmt.Printf("groth16.Setup cost time: %v ms\n", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -214,8 +219,10 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		err = vk.ExportSolidity(fSolidity)
 	}
 
-	fmt.Println("Generating witness", time.Now())
+	start = time.Now()
+	fmt.Println("Generating witness", start)
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	fmt.Printf("frontend.NewWitness cost time: %v ms\n", time.Now().Sub(start).Milliseconds())
 	publicWitness, _ := witness.Public()
 	if saveArtifacts {
 		fWitness, _ := os.Create("testdata/" + circuitName + "/witness")
@@ -223,8 +230,10 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		fWitness.Close()
 	}
 
-	fmt.Println("Creating proof", time.Now())
+	start = time.Now()
+	fmt.Println("Creating proof", start)
 	proof, err := groth16.Prove(r1cs, pk, witness)
+	fmt.Printf("groth16.Prove cost time: %v ms\n", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -240,8 +249,10 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 		return
 	}
 
-	fmt.Println("Verifying proof", time.Now())
+	start = time.Now()
+	fmt.Println("Verifying proof", start)
 	err = groth16.Verify(proof, vk, publicWitness)
+	fmt.Printf("groth16.Verify cost time: %v ms\n", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

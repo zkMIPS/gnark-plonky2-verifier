@@ -207,7 +207,10 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 
 	var builder frontend.NewBuilder = r1cs.NewBuilder
 
+	start := time.Now()
+	logger().Infof("frontend.Compile: %v", start)
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+	logger().Infof("frontend.Compile cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		res.Err = err
 		ch <- res
@@ -256,9 +259,11 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
 	}
 
+	start := time.Now()
 	logger().Infof("Running circuit setup: %v", time.Now())
 	logger().Infof("Using real setup")
 	pk, vk, err = groth16.Setup(r1cs)
+	logger().Infof("groth16.Setup cost time: %v ms", time.Now().Sub(start).Milliseconds())
 
 	if err != nil {
 		return nil, err
@@ -274,16 +279,20 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		fVK.Close()
 	}
 
-	logger().Infof("Generating witness: %v", time.Now())
+	start = time.Now()
+	logger().Infof("Generating witness: %v", start)
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	logger().Infof("frontend.NewWitness cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	publicWitness, _ := witness.Public()
 
 	fWitness, _ := os.Create(inputDir + "/witness")
 	witness.WriteTo(fWitness)
 	fWitness.Close()
 
-	logger().Infof("Creating proof: %v", time.Now())
+	start = time.Now()
+	logger().Infof("Creating proof: %v", start)
 	proof, err := groth16.Prove(r1cs, pk, witness)
+	logger().Infof("groth16.Prove cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		return nil, err
 	}
@@ -296,8 +305,10 @@ func generateGroth16Proof(r1cs constraint.ConstraintSystem, inputDir string, out
 		return nil, fmt.Errorf("vk is nil, means you're using dummy setup and we skip verification of proof")
 	}
 
-	logger().Infof("Verifying proof: %v", time.Now())
+	start = time.Now()
+	logger().Infof("Verifying proof: %v", start)
 	err = groth16.Verify(proof, vk, publicWitness)
+	logger().Infof("groth16.Verify cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		return nil, err
 	}
