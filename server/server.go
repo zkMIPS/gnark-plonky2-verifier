@@ -43,7 +43,7 @@ var (
 	dbPort          = flag.String("db_port", "3306", "The database port")
 	dbName          = flag.String("db_name", "zkm", "The database name")
 	logLevel        = flag.Uint64("log_level", uint64(log.InfoLevel), "The log level")
-	cacheDir        = flag.String("cache_dir", "/efs/zkm/test/test_proof/proof/f14489bf-a991-4733-8ab0-29e5625f4a04/aggregate", "The circuit and key cache dir")
+	cacheDir        = flag.String("cache_dir", "/efs/zkm/test/test_proof/cache_proof", "The circuit and key cache dir")
 
 	profileCircuit = flag.Bool("profile", false, "profile the circuit")
 )
