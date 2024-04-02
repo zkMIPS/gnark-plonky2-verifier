@@ -24,10 +24,25 @@ import (
 )
 
 func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool, dummy bool, saveArtifacts bool) {
-	commonCircuitData := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
+	commonCircuitData,err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + plonky2Circuit + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json"))
+	proofWithPisData, err := types.ReadProofWithPublicInputs("testdata/" + plonky2Circuit + "/proof_with_public_inputs.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
+
+	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 	circuit := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
@@ -84,8 +99,19 @@ func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool
 	var vk plonk.VerifyingKey
 	var err error
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	proofWithPisData, err := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
+
+	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -175,8 +201,19 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	var vk groth16.VerifyingKey
 	var err error
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	proofWithPisData, err := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
+
+	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
