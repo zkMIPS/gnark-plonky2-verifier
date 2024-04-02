@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+
+	//bn254r1cs "github.com/consensys/gnark/constraint/bn254"
 	"math/big"
 	"os"
 	"time"
@@ -28,17 +30,17 @@ var r1cs_circuit constraint.ConstraintSystem
 var pk groth16.ProvingKey
 var vk groth16.VerifyingKey
 
-func init_circuit_keys(plonky2Circuit string, circuitPath string) {
+func init_circuit_keys(plonky2Circuit string, circuitPath string, pkPath string, vkPath string) {
 	if r1cs_circuit != nil {
 		return
 	}
 
 	// 使用os.Stat()函数检查文件是否存在
-	_, err := os.Stat(plonky2Circuit)
+	_, err := os.Stat(circuitPath)
 
 	// 检查错误
 	if os.IsNotExist(err) {
-		commonCircuitData,err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
+		commonCircuitData, err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -51,7 +53,7 @@ func init_circuit_keys(plonky2Circuit string, circuitPath string) {
 		}
 		proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
 
-		verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json")
+		verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json")
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -77,19 +79,50 @@ func init_circuit_keys(plonky2Circuit string, circuitPath string) {
 			os.Exit(1)
 		}
 
+		r1cs_circuit = groth16.NewCS(ecc.BN254)
 		r1cs_circuit.ReadFrom(fCircuit)
 		fCircuit.Close()
 	}
 
-	pk, vk, err = groth16.Setup(r1cs_circuit)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	_, err = os.Stat(pkPath)
+	if os.IsNotExist(err) {
+		pk, vk, err = groth16.Setup(r1cs_circuit)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		fPK, _ := os.Create(pkPath)
+		pk.WriteTo(fPK)
+		fPK.Close()
+
+		if vk != nil {
+			fVK, _ := os.Create(vkPath)
+			vk.WriteTo(fVK)
+			fVK.Close()
+		}
+	} else {
+		pk = groth16.NewProvingKey(ecc.BN254)
+		vk = groth16.NewVerifyingKey(ecc.BN254)
+		fPk, err := os.Open(pkPath)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		pk.ReadFrom(fPk)
+
+		fVk, err := os.Open(vkPath)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		vk.ReadFrom(fVk)
+		defer fVk.Close()
 	}
 }
 
 func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool, dummy bool, saveArtifacts bool) {
-	commonCircuitData,err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
+	commonCircuitData, err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -102,7 +135,7 @@ func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool
 	}
 	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
 
-	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData("testdata/" + plonky2Circuit + "/verifier_only_circuit_data.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -171,7 +204,7 @@ func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool
 	}
 	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
 
-	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -261,7 +294,7 @@ func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool
 	fmt.Printf("proofBytes: %v\n", proofBytes)
 }
 
-func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string,  saveArtifacts bool) {
+func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string, saveArtifacts bool) {
 	proofWithPisData, err := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
 	if err != nil {
 		fmt.Println(err)
@@ -269,7 +302,7 @@ func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string,
 	}
 	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
 
-	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -365,7 +398,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	}
 	proofWithPis := variables.DeserializeProofWithPublicInputs(proofWithPisData)
 
-	verifierOnlyCircuitRawData, err :=  types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitRawData, err := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -487,8 +520,12 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 }
 
 func runWithPrecomputedCircuit(plonky2Circuit string, saveArtifacts bool) {
-	init_circuit_keys(plonky2Circuit, "testdata/circuit")
-	groth16ProofWithCache(r1cs_circuit, plonky2Circuit, saveArtifacts)
+	init_circuit_keys(plonky2Circuit, "testdata/circuit",
+		"testdata/"+plonky2Circuit+"/proving.key",
+		"testdata/"+plonky2Circuit+"/verifying.key")
+	for i := 0; i < 10; i++ {
+		groth16ProofWithCache(r1cs_circuit, plonky2Circuit, saveArtifacts)
+	}
 }
 
 func main() {
