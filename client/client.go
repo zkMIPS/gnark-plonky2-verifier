@@ -97,6 +97,8 @@ func main() {
 		ProofWithPublicInputs:   proofWithPublicInputs,
 	})
 
+	time.Sleep(2*time.Minute)
+
 	// Query snark proof
 	getSnarkProofJobTask(client, &pb.GetTaskResultRequest{
 		ProofId:           u.String(),
