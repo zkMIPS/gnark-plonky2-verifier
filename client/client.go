@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
+	"os"
 	"time"
 )
 
@@ -19,7 +20,7 @@ var (
 	serverAddr         = flag.String("addr", "localhost:50051", "The server address in the format of host:port")
 	serverHostOverride = flag.String("server_host_override", "x.test.example.com", "The server name used to verify the hostname returned by the TLS handshake")
 
-	inputDir   = flag.String("input_dir", "testdata/mips", "The request input dir")
+	inputDir   = flag.String("input_dir", "/efs/zkm/test/test_proof/proof/test_cache3/aggregate", "The request input dir")
 	outputPath = flag.String("output_dir", "testdata/mips/groth16.proof", "The request output dir")
 )
 
@@ -73,14 +74,27 @@ func main() {
 	name := []byte("zkm")
 	u := uuid.NewSHA1(namespace, name)
 
+	commonCircuitData, err := os.ReadFile(*inputDir + "/common_circuit_data.json")
+	if err != nil {
+		log.Fatalf("fail to read common_circuit_data: %v", err)
+	}
+	verifierOnlyCircuitData, err := os.ReadFile(*inputDir + "/verifier_only_circuit_data.json")
+	if err != nil {
+		log.Fatalf("fail to read verifier_only_circuit_data: %v", err)
+	}
+	proofWithPublicInputs, err := os.ReadFile(*inputDir + "/proof_with_public_inputs.json")
+	if err != nil {
+		log.Fatalf("fail to read proof_with_public_inputs: %v", err)
+	}
 	// Request snark proof
 	reqSnarkProof(client, &pb.FinalProofRequest{
-		ChainId:           11155111,
-		Timestamp:         uint64(time.Now().Unix()),
-		ProofId:           u.String(),
-		ComputedRequestId: u.String(),
-		InputDir:          *inputDir,
-		OutputPath:        *outputPath,
+		ChainId:                 11155111,
+		Timestamp:               uint64(time.Now().Unix()),
+		ProofId:                 u.String(),
+		ComputedRequestId:       u.String(),
+		CommonCircuitData:       commonCircuitData,
+		VerifierOnlyCircuitData: verifierOnlyCircuitData,
+		ProofWithPublicInputs:   proofWithPublicInputs,
 	})
 
 	// Query snark proof

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -10,7 +11,6 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/profile"
-	"github.com/golang/protobuf/jsonpb"
 	pb "github.com/succinctlabs/gnark-plonky2-verifier/proto/prover/v1"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
@@ -41,7 +41,7 @@ const AggregatedProofJobPriority = 0
 
 type ProverInputResponse struct {
 	JobId             int
-	SnarkProofRequest *pb.FinalProofRequest
+	SnarkProofRequest *OriginalFinalProofRequest
 }
 
 type Groth16ProofResult struct {
@@ -49,6 +49,20 @@ type Groth16ProofResult struct {
 	ComputedRequestId string
 	ProofBytes        []byte
 	Err               error
+}
+
+type OriginalFinalProofRequest struct {
+	ChainId           uint64 `protobuf:"varint,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	Timestamp         uint64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	ProofId           string `protobuf:"bytes,3,opt,name=proof_id,json=proofId,proto3" json:"proof_id,omitempty"`
+	ComputedRequestId string `protobuf:"bytes,4,opt,name=computed_request_id,json=computedRequestId,proto3" json:"computed_request_id,omitempty"`
+	// There are three files in the folder
+	// common_circuit_data.json
+	// verifier_only_circuit_data.json
+	// proof_with_public_inputs.json
+	InputDir string `protobuf:"bytes,5,opt,name=input_dir,json=inputDir,proto3" json:"input_dir,omitempty"`
+	// The file path for storing the results
+	OutputPath string `protobuf:"bytes,6,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"`
 }
 
 func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, heartBeat uint64) {
@@ -135,16 +149,12 @@ func loadIdleProverJobFromQueue() (ProverInputResponse, error) {
 			return resp, err
 		}
 
-		proofReq := &pb.FinalProofRequest{}
-
-		if err := jsonpb.UnmarshalString(jobData, proofReq); err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return resp, rollbackErr
-			}
+		originalReq := OriginalFinalProofRequest{}
+		if err = json.Unmarshal([]byte(jobData), &originalReq); err != nil {
 			return resp, err
 		}
 
-		resp = ProverInputResponse{JobId: id, SnarkProofRequest: proofReq}
+		resp = ProverInputResponse{JobId: id, SnarkProofRequest: &originalReq}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -172,8 +182,8 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	// remove useless slash
 	cleanInputDir := filepath.Clean(job.SnarkProofRequest.InputDir)
 
-	if r1cs_circuit != nil && pk != nil && vk != nil { // has cache
-		bytes, err := generateGroth16ProofWithCache(r1cs_circuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
+	if r1csCircuit != nil && pk != nil && vk != nil { // has cache
+		bytes, err := generateGroth16ProofWithCache(r1csCircuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
 		if err != nil {
 			res.Err = err
 			ch <- res
@@ -225,7 +235,7 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 
 	start := time.Now()
 	logger().Infof("frontend.Compile: %v", start)
-	r1cs_circuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+	r1csCircuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
 	logger().Infof("frontend.Compile cost time: %v ms", time.Now().Sub(start).Milliseconds())
 	if err != nil {
 		res.Err = err
@@ -234,20 +244,20 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	}
 
 	fR1CS, _ := os.Create(*cacheDir + "/circuit")
-	r1cs_circuit.WriteTo(fR1CS)
+	r1csCircuit.WriteTo(fR1CS)
 	fR1CS.Close()
 
 	if *profileCircuit {
 		p.Stop()
 		p.Top()
-		logger().Infof("r1cs.GetNbCoefficients(): %v", r1cs_circuit.GetNbCoefficients())
-		logger().Infof("r1cs.GetNbConstraints(): %v", r1cs_circuit.GetNbConstraints())
-		logger().Infof("r1cs.GetNbSecretVariables(): %v", r1cs_circuit.GetNbSecretVariables())
-		logger().Infof("r1cs.GetNbPublicVariables(): %v", r1cs_circuit.GetNbPublicVariables())
-		logger().Infof("r1cs.GetNbInternalVariables(): %v", r1cs_circuit.GetNbInternalVariables())
+		logger().Infof("r1cs.GetNbCoefficients(): %v", r1csCircuit.GetNbCoefficients())
+		logger().Infof("r1cs.GetNbConstraints(): %v", r1csCircuit.GetNbConstraints())
+		logger().Infof("r1cs.GetNbSecretVariables(): %v", r1csCircuit.GetNbSecretVariables())
+		logger().Infof("r1cs.GetNbPublicVariables(): %v", r1csCircuit.GetNbPublicVariables())
+		logger().Infof("r1cs.GetNbInternalVariables(): %v", r1csCircuit.GetNbInternalVariables())
 	}
 
-	bytes, err := generateGroth16Proof(r1cs_circuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
+	bytes, err := generateGroth16Proof(r1csCircuit, cleanInputDir, job.SnarkProofRequest.OutputPath)
 	if err != nil {
 		res.Err = err
 		ch <- res
@@ -447,79 +457,142 @@ func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
 	return nil
 }
 
-func checkStarkProofExists(req *pb.FinalProofRequest) error {
-	cleanInputDir := filepath.Clean(req.InputDir)
+func saveStarkProofIntoDisk(commonCircuitData []byte, verifierOnlyCircuitData []byte,
+	proofWithPublicInputs []byte, starkProofDir string, outputDir string) error {
 
-	commonCircuitFile := cleanInputDir + "/common_circuit_data.json"
-	_, err := os.Stat(commonCircuitFile)
+	err := os.MkdirAll(starkProofDir+"/aggregate", 0755)
 	if err != nil {
-		return fmt.Errorf("file:%s not found", commonCircuitFile)
+		return err
 	}
 
-	proofWithPublicInputsFile := cleanInputDir + "/proof_with_public_inputs.json"
-	_, err = os.Stat(proofWithPublicInputsFile)
+	err = saveJsonFile(starkProofDir+"/common_circuit_data.json", commonCircuitData)
 	if err != nil {
-		return fmt.Errorf("file:%s not found", proofWithPublicInputsFile)
+		return err
 	}
 
-	verifierOnlyCircuitDataFile := cleanInputDir + "/verifier_only_circuit_data.json"
-	_, err = os.Stat(verifierOnlyCircuitDataFile)
+	err = saveJsonFile(starkProofDir+"/verifier_only_circuit_data.json", verifierOnlyCircuitData)
 	if err != nil {
-		return fmt.Errorf("file:%s not found", verifierOnlyCircuitDataFile)
+		return err
+	}
+
+	err = saveJsonFile(starkProofDir+"/proof_with_public_inputs.json", proofWithPublicInputs)
+	if err != nil {
+		return err
+	}
+
+	// create output path parent dir
+	err = os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func saveJsonFile(filePath string, byteData []byte) error {
+	var jsonData interface{}
+	err := json.Unmarshal(byteData, &jsonData)
+	if err != nil {
+		return err
+	}
+
+	jsonBytes, err := json.MarshalIndent(jsonData, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filePath, jsonBytes, 0644)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Result {
-	marshaller := jsonpb.Marshaler{}
-	jobData, err := marshaller.MarshalToString(req)
-	if err != nil {
-		formatStr := "Failed to addProverJobToQueue,err: %+v"
-		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+	starkProofDir := filepath.Clean(*inputParentDir) + "/" + req.ProofId
+	outputDir := starkProofDir + "/final"
+	originalReq := OriginalFinalProofRequest{
+		ChainId:           req.ChainId,
+		Timestamp:         req.Timestamp,
+		ProofId:           req.ProofId,
+		ComputedRequestId: req.ComputedRequestId,
+		InputDir:          starkProofDir + "/aggregate",
+		OutputPath:        outputDir + "/output",
 	}
-	err = checkStarkProofExists(req)
+	jobData, err := json.Marshal(originalReq)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+	}
+	err = saveStarkProofIntoDisk(
+		req.CommonCircuitData,
+		req.VerifierOnlyCircuitData,
+		req.ProofWithPublicInputs,
+		originalReq.InputDir,
+		outputDir,
+	)
+	if err != nil {
+		formatStr := "Failed to addProverJobToQueue,err: %+v"
+		logger().Errorf(formatStr, err)
+		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	insertQuery := "INSERT INTO prover_job_queue (job_status, job_priority, job_type, updated_by, proof_id, computed_request_id, job_data) VALUES(?,?,?,?,?,?,?)"
 	_, err = db.Exec(insertQuery, Idle, SingleProofJobPriority, SingleProof, "server_add_job", req.ProofId, req.ComputedRequestId, jobData)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
 	}
 
 	return getSuccessResult("get task successfully.")
 }
 
 func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
+	formatStr := "Failed to query proofs db, err: %+v"
 	query := "SELECT * FROM proofs WHERE proof_id = ? and computed_request_id = ?"
 
 	rows, err := db.Query(query, req.ProofId, req.ComputedRequestId)
 	if err != nil {
-		formatStr := "Failed to query proofs db, err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	defer rows.Close()
 
 	if rows.Next() { // if and only if one result
+		query = "SELECT job_data FROM prover_job_queue WHERE proof_id = ? and computed_request_id = ?"
+
+		rows, err = db.Query(query, req.ProofId, req.ComputedRequestId)
 		if err != nil {
-			formatStr := "Failed to query prover job status result, err: %+v"
 			logger().Errorf(formatStr, err)
-			return getErrorResult(pb.ResultCode_RESULT_ERROR, fmt.Sprintf(formatStr, err))
+			return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
 		}
-		return getSuccessResult("proofs was generated successfully.")
+		if rows.Next() {
+			var jobData string
+			err = rows.Scan(&jobData)
+			if err != nil {
+				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+			}
+			proofReq := OriginalFinalProofRequest{}
+			if err = json.Unmarshal([]byte(jobData), &proofReq); err != nil {
+				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+			}
+
+			proofBytes, err := os.ReadFile(proofReq.OutputPath)
+			if err != nil {
+				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+			}
+
+			return getSuccessResult(string(proofBytes))
+		}
+		return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
 	}
-	return getErrorResult(pb.ResultCode_RESULT_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
+	return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
 }
 
 func getSuccessResult(msg string) *pb.Result {
-	return &pb.Result{Code: pb.ResultCode_RESULT_OK, Message: msg}
+	return &pb.Result{Code: pb.ResultCode_OK, Message: msg}
 }
 
 func getErrorResult(code pb.ResultCode, errorMsg string) *pb.Result {

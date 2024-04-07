@@ -44,12 +44,13 @@ var (
 	dbName          = flag.String("db_name", "zkm", "The database name")
 	logLevel        = flag.Uint64("log_level", uint64(log.InfoLevel), "The log level")
 	cacheDir        = flag.String("cache_dir", "/efs/zkm/test/test_proof/cache_proof", "The circuit and key cache dir")
+	inputParentDir  = flag.String("input_parent_dir", "/efs/zkm/test/test_proof/proof", "The stark proof parent dir")
 
 	profileCircuit = flag.Bool("profile", false, "profile the circuit")
 )
 
 var (
-	r1cs_circuit constraint.ConstraintSystem
+	r1csCircuit constraint.ConstraintSystem
 
 	pk groth16.ProvingKey
 	vk groth16.VerifyingKey
@@ -116,7 +117,7 @@ func connectDatabase() {
 }
 
 func initCircuitKeys() {
-	if r1cs_circuit != nil {
+	if r1csCircuit != nil {
 		return
 	}
 
@@ -156,9 +157,9 @@ func initCircuitKeys() {
 		}
 
 		var builder frontend.NewBuilder = r1cs.NewBuilder
-		r1cs_circuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
+		r1csCircuit, err = frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
 		fR1CS, _ := os.Create(circuitPath)
-		r1cs_circuit.WriteTo(fR1CS)
+		r1csCircuit.WriteTo(fR1CS)
 		fR1CS.Close()
 	} else {
 		fCircuit, err := os.Open(circuitPath)
@@ -167,14 +168,14 @@ func initCircuitKeys() {
 			return
 		}
 
-		r1cs_circuit = groth16.NewCS(ecc.BN254)
-		r1cs_circuit.ReadFrom(fCircuit)
+		r1csCircuit = groth16.NewCS(ecc.BN254)
+		r1csCircuit.ReadFrom(fCircuit)
 		fCircuit.Close()
 	}
 
 	_, err = os.Stat(pkPath)
 	if os.IsNotExist(err) {
-		pk, vk, err = groth16.Setup(r1cs_circuit)
+		pk, vk, err = groth16.Setup(r1csCircuit)
 		if err != nil {
 			logger().Errorln(err)
 			return
