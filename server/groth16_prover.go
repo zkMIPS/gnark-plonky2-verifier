@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -584,7 +585,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
 			}
 
-			return getSuccessResult(string(proofBytes))
+			return getSuccessResult(hex.EncodeToString(proofBytes))
 		}
 		return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
 	}
