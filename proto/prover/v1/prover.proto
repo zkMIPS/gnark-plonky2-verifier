@@ -15,7 +15,7 @@ enum ResultCode {
     WRONG_PARAMETER = 1;
     INTERNAL_ERROR = 2;
     BUSY = 3;
-    UNKNOWN = 4;
+    UNSPECIFIED = 4;
 }
 
 message Result {
