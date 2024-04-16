@@ -557,7 +557,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	rows, err := db.Query(query, req.ProofId, req.ComputedRequestId)
 	if err != nil {
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_WRONG_PARAMETER, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_INVALID_PARAMETER, fmt.Sprintf(formatStr, err))
 	}
 	defer rows.Close()
 
