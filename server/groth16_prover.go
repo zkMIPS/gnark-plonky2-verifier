@@ -525,7 +525,7 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	err = saveStarkProofIntoDisk(
 		req.CommonCircuitData,
@@ -537,14 +537,14 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 	}
 	insertQuery := "INSERT INTO prover_job_queue (job_status, job_priority, job_type, updated_by, proof_id, computed_request_id, job_data) VALUES(?,?,?,?,?,?,?)"
 	_, err = db.Exec(insertQuery, Idle, SingleProofJobPriority, SingleProof, "server_add_job", req.ProofId, req.ComputedRequestId, jobData)
 	if err != nil {
 		formatStr := "Failed to addProverJobToQueue,err: %+v"
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 	}
 
 	return getSuccessResult("get task successfully.")
@@ -557,7 +557,7 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	rows, err := db.Query(query, req.ProofId, req.ComputedRequestId)
 	if err != nil {
 		logger().Errorf(formatStr, err)
-		return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+		return getErrorResult(pb.ResultCode_INVALID_PARAMETER, fmt.Sprintf(formatStr, err))
 	}
 	defer rows.Close()
 
@@ -567,22 +567,22 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 		rows, err = db.Query(query, req.ProofId, req.ComputedRequestId)
 		if err != nil {
 			logger().Errorf(formatStr, err)
-			return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+			return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 		}
 		if rows.Next() {
 			var jobData string
 			err = rows.Scan(&jobData)
 			if err != nil {
-				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 			}
 			proofReq := OriginalFinalProofRequest{}
 			if err = json.Unmarshal([]byte(jobData), &proofReq); err != nil {
-				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 			}
 
 			proofBytes, err := os.ReadFile(proofReq.OutputPath)
 			if err != nil {
-				return getErrorResult(pb.ResultCode_ERROR, fmt.Sprintf(formatStr, err))
+				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
 			}
 
 			return getSuccessResult(hex.EncodeToString(proofBytes))
