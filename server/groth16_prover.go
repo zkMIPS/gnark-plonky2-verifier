@@ -497,7 +497,7 @@ func saveJsonFile(filePath string, byteData []byte) error {
 		return err
 	}
 
-	jsonBytes, err := json.MarshalIndent(jsonData, "", "  ")
+	jsonBytes, err := json.Marshal(jsonData)
 	if err != nil {
 		return err
 	}
