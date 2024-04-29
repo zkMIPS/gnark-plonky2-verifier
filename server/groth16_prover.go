@@ -6,6 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
@@ -16,10 +21,6 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
-	"math/big"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 type ProverJobStatus int
@@ -497,12 +498,12 @@ func saveJsonFile(filePath string, byteData []byte) error {
 		return err
 	}
 
-	jsonBytes, err := json.Marshal(jsonData)
-	if err != nil {
-		return err
-	}
+	// jsonBytes, err := json.MarshalIndent(jsonData, "", "  ")
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = os.WriteFile(filePath, jsonBytes, 0644)
+	err = os.WriteFile(filePath, byteData, 0644)
 	if err != nil {
 		return err
 	}
