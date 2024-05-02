@@ -5,6 +5,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"math/big"
+	"os"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
@@ -15,9 +19,6 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
-	"log"
-	"math/big"
-	"os"
 )
 
 var GoerliId = big.NewInt(5)
@@ -119,9 +120,10 @@ func callVerifierContract(addr string) {
 	for i := 0; i < 8; i++ {
 		fmt.Printf("proofInputs[%v]:%s\n", i, proofInputs[i].String())
 	}
-
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	publicInput, _ := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
+	proofWithPis := variables.DeserializeProofWithPublicInputs(publicInput)
+	circuitData, _ := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(circuitData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -270,8 +272,10 @@ func deployAndCallVerifierContract() {
 		fmt.Printf("proofInputs[%v]:%s\n", i, proofInputs[i].String())
 	}
 
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	publicInput, _ := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
+	proofWithPis := variables.DeserializeProofWithPublicInputs(publicInput)
+	circuitData, _ := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(circuitData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
@@ -333,8 +337,10 @@ func deployAndCallVerifierContract() {
 
 func verifyLocal() {
 	var circuitName = "mips"
-	proofWithPis := variables.DeserializeProofWithPublicInputs(types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json"))
-	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json"))
+	publicInput, _ := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
+	proofWithPis := variables.DeserializeProofWithPublicInputs(publicInput)
+	circuitData, _ := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(circuitData)
 	assignment := verifier.ExampleVerifierCircuit{
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,

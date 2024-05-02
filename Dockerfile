@@ -39,6 +39,7 @@ COPY . .
 ENV GOOS linux
 ENV GOARCH amd64
 RUN GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/snark_server ./server
+RUN GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/gnark_sol_caller gnark_sol_caller.go
 RUN mkdir -p /app/server
 RUN touch /app/server/server.log
 RUN chmod a+x /usr/local/bin/snark_server
