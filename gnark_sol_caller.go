@@ -336,7 +336,7 @@ func deployAndCallVerifierContract() {
 }
 
 func verifyLocal() {
-	var circuitName = "helloworld"
+	var circuitName = "mips"
 	publicInput, _ := types.ReadProofWithPublicInputs("testdata/" + circuitName + "/proof_with_public_inputs.json")
 	proofWithPis := variables.DeserializeProofWithPublicInputs(publicInput)
 	circuitData, _ := types.ReadVerifierOnlyCircuitData("testdata/" + circuitName + "/verifier_only_circuit_data.json")
