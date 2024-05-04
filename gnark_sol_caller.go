@@ -21,31 +21,29 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
 
-var GoerliId = big.NewInt(5)
+// var GoerliId = big.NewInt(5)
+// var GoerliNetwork = "https://eth-goerli.g.alchemy.com/v2/zKJf16XxhgdL6wMKT_NulOFfBfoT8YqE"
+// var SepoliaId = big.NewInt(11155111)
+// var SepoliaNetwork = "https://eth-sepolia.g.alchemy.com/v2/RH793ZL_pQkZb7KttcWcTlOjPrN0BjOW"
+
+var ChainId *int64
+var Network *string
+var HexPrivaeKey *string // ("df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9") // 0x21f59Cfb0d41FA2c0eeF0Fe1593F46f704C1Db50
 
 func main() {
-	deployVerifierCmd := flag.NewFlagSet("deploy", flag.ExitOnError)
-
-	verifyCmd := flag.NewFlagSet("verify", flag.ExitOnError)
-	verifierAddr := verifyCmd.String("addr", "", "addr")
-
-	_ = flag.NewFlagSet("printVk", flag.ExitOnError)
-
-	_ = flag.NewFlagSet("all", flag.ExitOnError)
-
-	_ = flag.NewFlagSet("verifylocal", flag.ExitOnError)
-
+	ChainId = flag.Int64("chainId", 11155111, "chainId")
+	Network = flag.String("network", "https://eth-sepolia.g.alchemy.com/v2/RH793ZL_pQkZb7KttcWcTlOjPrN0BjOW", "network")
+	HexPrivaeKey = flag.String("privateKey", "df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9", "privateKey")
+	verifierAddr := flag.String("addr", "", "addr")
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'deploy' or 'verify' or 'printvk' or 'all'  subcommands")
 		os.Exit(1)
 	}
-
+	flag.CommandLine.Parse(os.Args[2:])
 	switch os.Args[1] {
 	case "deploy":
-		deployVerifierCmd.Parse(os.Args[2:])
 		deployVerifierContract()
 	case "verify":
-		verifyCmd.Parse(os.Args[2:])
 		callVerifierContract(*verifierAddr)
 	case "printvk":
 		PrintVk()
@@ -70,18 +68,17 @@ func callVerifierContract(addr string) {
 
 	flag.Parse()
 
-	var network = "https://eth-goerli.g.alchemy.com/v2/zKJf16XxhgdL6wMKT_NulOFfBfoT8YqE"
-	client, err := ethclient.Dial(network)
+	client, err := ethclient.Dial(*Network)
 	if err != nil {
 		log.Fatalf("Failed to create eth client: %v", err)
 	}
 	var circuitName = "mips"
 
-	unlockedKey, err := crypto.HexToECDSA("df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9") // 0x21f59Cfb0d41FA2c0eeF0Fe1593F46f704C1Db50
+	unlockedKey, err := crypto.HexToECDSA(*HexPrivaeKey)
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, GoerliId)
+	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, big.NewInt(*ChainId))
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -184,17 +181,16 @@ func callVerifierContract(addr string) {
 }
 
 func deployVerifierContract() {
-	var network = "https://eth-goerli.g.alchemy.com/v2/zKJf16XxhgdL6wMKT_NulOFfBfoT8YqE"
-	client, err := ethclient.Dial(network)
+	client, err := ethclient.Dial(*Network)
 	if err != nil {
 		log.Fatalf("Failed to create eth client: %v", err)
 	}
 
-	unlockedKey, err := crypto.HexToECDSA("df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9") // 0x21f59Cfb0d41FA2c0eeF0Fe1593F46f704C1Db50
+	unlockedKey, err := crypto.HexToECDSA(*HexPrivaeKey)
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, GoerliId)
+	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, big.NewInt(*ChainId))
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -213,18 +209,17 @@ func deployVerifierContract() {
 }
 
 func deployAndCallVerifierContract() {
-	var network = "https://eth-goerli.g.alchemy.com/v2/zKJf16XxhgdL6wMKT_NulOFfBfoT8YqE"
-	client, err := ethclient.Dial(network)
+	client, err := ethclient.Dial(*Network)
 	if err != nil {
 		log.Fatalf("Failed to create eth client: %v", err)
 	}
 	var circuitName = "mips"
 
-	unlockedKey, err := crypto.HexToECDSA("df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9") // 0x21f59Cfb0d41FA2c0eeF0Fe1593F46f704C1Db50
+	unlockedKey, err := crypto.HexToECDSA(*HexPrivaeKey)
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, GoerliId)
+	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, big.NewInt(*ChainId))
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
