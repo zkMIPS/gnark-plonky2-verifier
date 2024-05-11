@@ -8,9 +8,11 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"text/template"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
+	groth16_bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,6 +53,8 @@ func main() {
 		deployAndCallVerifierContract()
 	case "verifylocal":
 		verifyLocal()
+	case "generate":
+		generateVerifySol()
 	}
 }
 
@@ -62,6 +66,54 @@ func PrintVk() {
 	vk.ReadFrom(fVk)
 	defer fVk.Close()
 	groth16.PrintBn254Vk(vk)
+}
+
+func generateVerifySol() {
+	tmpl, err := template.ParseFiles("verifier/verifier.sol.tmpl")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type VerifyingKeyConfig struct {
+		Alpha     string
+		Beta      string
+		Gamma     string
+		Delta     string
+		Gamma_abc string
+	}
+
+	var config VerifyingKeyConfig
+	var circuitName = "mips"
+	var vkBN254 = groth16.NewVerifyingKey(ecc.BN254)
+
+	fVk, _ := os.Open("testdata/" + circuitName + "/verifying.key")
+	vkBN254.ReadFrom(fVk)
+	defer fVk.Close()
+
+	vk := vkBN254.(*groth16_bn254.VerifyingKey)
+
+	config.Alpha = fmt.Sprint("Pairing.G1Point(uint256(", vk.G1.Alpha.X.String(), "), uint256(", vk.G1.Alpha.Y.String(), "))")
+	config.Beta = fmt.Sprint("Pairing.G2Point([uint256(", vk.G2.Beta.X.A0.String(), "), uint256(", vk.G2.Beta.X.A1.String(), ")], [uint256(", vk.G2.Beta.Y.A0.String(), "), uint256(", vk.G2.Beta.Y.A1.String(), ")])")
+	config.Gamma = fmt.Sprint("Pairing.G2Point([uint256(", vk.G2.Gamma.X.A0.String(), "), uint256(", vk.G2.Gamma.X.A1.String(), ")], [uint256(", vk.G2.Gamma.Y.A0.String(), "), uint256(", vk.G2.Gamma.Y.A1.String(), ")])")
+	config.Delta = fmt.Sprint("Pairing.G2Point([uint256(", vk.G2.Delta.X.A0.String(), "), uint256(", vk.G2.Delta.X.A1.String(), ")], [uint256(", vk.G2.Delta.Y.A0.String(), "), uint256(", vk.G2.Delta.Y.A1.String(), ")])")
+	config.Gamma_abc = fmt.Sprint("vk.gamma_abc = new Pairing.G1Point[](", len(vk.G1.K), ");\n")
+	for k, v := range vk.G1.K {
+		config.Gamma_abc += fmt.Sprint("        vk.gamma_abc[", k, "] = Pairing.G1Point(uint256(", v.X.String(), "), uint256(", v.Y.String(), "));\n")
+	}
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(buf.String())
+	fSol, _ := os.Create("testdata/" + circuitName + "/verifier.sol")
+	_, err = fSol.Write(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	fSol.Close()
+	fmt.Println("success")
 }
 
 func callVerifierContract(addr string) {
@@ -133,6 +185,7 @@ func callVerifierContract(addr string) {
 	err, bPublicWitness, commitmentX, commitmentY := groth16.GetBn254Witness(proof, vk, publicWitness)
 
 	fmt.Printf("bPublicWitness len:%+v\n", len(bPublicWitness))
+	// fmt.Printf("bPublicWitness last:%+v\n", bPublicWitness)
 
 	// convert public inputs
 	nbInputs := len(bPublicWitness)
