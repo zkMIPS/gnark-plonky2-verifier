@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -196,12 +197,26 @@ func callVerifierContract(addr string) {
 		log.Fatalf("nbInputs != nbPublicInputs,nbInputs:{%+v} nbPublicInputs:{%+v}", nbInputs, nbPublicInputs)
 	}
 
+	type ProofPublicData struct {
+		Proof         groth16.Proof
+		PublicWitness []string
+	}
+
+	proofPublicData := ProofPublicData{
+		Proof:         proof,
+		PublicWitness: make([]string, nbInputs),
+	}
+
 	var input [65]*big.Int
 	for i := 0; i < nbInputs; i++ {
 		input[i] = new(big.Int)
 		bPublicWitness[i].BigInt(input[i])
+		proofPublicData.PublicWitness[i] = input[i].String()
 		fmt.Printf("input[%v]:%s\n", i, input[i].String())
 	}
+
+	jproofPublicData, _ := json.Marshal(proofPublicData)
+	fmt.Printf("proofPublicData json: %s\n", string(jproofPublicData))
 
 	var vp = verifier.VerifierProof{
 		A: verifier.PairingG1Point{

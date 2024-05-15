@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 
@@ -357,6 +358,29 @@ func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string,
 	var buf bytes.Buffer
 	proof.WriteRawTo(&buf)
 	proofBytes := buf.Bytes()
+
+	if saveArtifacts {
+		fContractProof, _ := os.Create("testdata/" + circuitName + "/proof.json")
+		_, bPublicWitness, _, _ := groth16.GetBn254Witness(proof, vk, publicWitness)
+		nbInputs := len(bPublicWitness)
+
+		type ProofPublicData struct {
+			Proof         groth16.Proof
+			PublicWitness []string
+		}
+		proofPublicData := ProofPublicData{
+			Proof:         proof,
+			PublicWitness: make([]string, nbInputs),
+		}
+		for i := 0; i < nbInputs; i++ {
+			input := new(big.Int)
+			bPublicWitness[i].BigInt(input)
+			proofPublicData.PublicWitness[i] = input.String()
+		}
+		proofData, _ := json.Marshal(proofPublicData)
+		fContractProof.Write(proofData)
+		fContractProof.Close()
+	}
 
 	var (
 		a [2]*big.Int
