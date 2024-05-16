@@ -187,13 +187,15 @@ contract Verifier {
         vk_x = Pairing.addition(vk_x, vk.gamma_abc[0]);
         vk_x = Pairing.addition(vk_x, p_c);
 
-    if(!Pairing.pairingProd4(
-             proof.a, proof.b,
-             Pairing.negate(vk_x), vk.gamma,
-             Pairing.negate(proof.c), vk.delta,
-             Pairing.negate(vk.alpha), vk.beta)) return 1;
+        if(!Pairing.pairingProd4(
+            proof.a, proof.b,
+            Pairing.negate(vk_x), vk.gamma,
+            Pairing.negate(proof.c), vk.delta,
+            Pairing.negate(vk.alpha), vk.beta)) {
+            return 1;
+        }
 
-    return 0;
+        return 0;
     }
     function verifyTx(
             Proof memory proof, uint[65] memory input
