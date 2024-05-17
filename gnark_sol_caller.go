@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -38,6 +39,7 @@ func main() {
 	Network = flag.String("network", "https://eth-sepolia.g.alchemy.com/v2/RH793ZL_pQkZb7KttcWcTlOjPrN0BjOW", "network")
 	HexPrivaeKey = flag.String("privateKey", "df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9", "privateKey")
 	verifierAddr := flag.String("addr", "", "addr")
+	outputDir := flag.String("outputDir", "hardhat/contracts", "outputDir")
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'deploy' or 'verify' or 'printvk' or 'all'  subcommands")
 		os.Exit(1)
@@ -55,7 +57,7 @@ func main() {
 	case "verifylocal":
 		verifyLocal()
 	case "generate":
-		generateVerifySol()
+		generateVerifySol(*outputDir)
 	}
 }
 
@@ -69,7 +71,7 @@ func PrintVk() {
 	groth16.PrintBn254Vk(vk)
 }
 
-func generateVerifySol() {
+func generateVerifySol(outputDir string) {
 	tmpl, err := template.ParseFiles("verifier/verifier.sol.tmpl")
 	if err != nil {
 		log.Fatal(err)
@@ -106,9 +108,8 @@ func generateVerifySol() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println(buf.String())
-	fSol, _ := os.Create("testdata/" + circuitName + "/verifier.sol")
+	fSol, _ := os.Create(filepath.Join(outputDir, "/verifier.sol"))
 	_, err = fSol.Write(buf.Bytes())
 	if err != nil {
 		log.Fatal(err)

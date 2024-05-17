@@ -360,7 +360,7 @@ func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string,
 	proofBytes := buf.Bytes()
 
 	if saveArtifacts {
-		fContractProof, _ := os.Create("testdata/" + circuitName + "/proof.json")
+		fContractProof, _ := os.Create("testdata/" + circuitName + "/snark_proof_with_public_inputs.json")
 		_, bPublicWitness, _, _ := groth16.GetBn254Witness(proof, vk, publicWitness)
 		nbInputs := len(bPublicWitness)
 

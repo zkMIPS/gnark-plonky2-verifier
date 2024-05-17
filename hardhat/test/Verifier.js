@@ -15,7 +15,7 @@ describe('Verifier', function () {
     });
   
     it('Should submit a proof', async function () {  
-        const data = JSON.parse(fs.readFileSync('./test/proof.json', 'utf8'));  
+        const data = JSON.parse(fs.readFileSync('./test/snark_proof_with_public_inputs.json', 'utf8'));  
         const commitmentX = ethers.getBigInt(data['Proof']['Commitments'][0]['X']); 
         const commitmentY = ethers.getBigInt(data['Proof']['Commitments'][0]['Y']); 
         const commitments = [commitmentX, commitmentY];
