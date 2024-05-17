@@ -238,7 +238,7 @@ contract Verifier {
         vk.gamma_abc[65] = Pairing.G1Point(uint256(7698321889546691794878536531188548648100148414739255721861902096652469913065), uint256(18555072891409469065164448330771960269687284149882267190390305978076549392252));
 
     }
-    function verify(uint[65] memory input, Proof memory proof, uint[2] memory proof_commitment) internal view returns (uint) {
+    function verify(uint[65] memory input, Proof memory proof, uint[2] memory proof_commitment) public view returns (uint) {
         uint256 snark_scalar_field = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
         
         VerifyingKey memory vk = verifyingKey();

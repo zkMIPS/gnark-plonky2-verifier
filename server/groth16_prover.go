@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -336,37 +334,24 @@ func generateProof(inputDir string, outputPath string, assignment verifier.Examp
 		return nil, err
 	}
 
-	const fpSize = 4 * 8
-	var buf bytes.Buffer
-	proof.WriteRawTo(&buf)
-	proofBytes := buf.Bytes()
+	_, bPublicWitness, _, _ := groth16.GetBn254Witness(proof, vk, publicWitness)
+	nbInputs := len(bPublicWitness)
 
-	var (
-		a [2]*big.Int
-		b [2][2]*big.Int
-		c [2]*big.Int
-	)
-
-	// proof.Ar, proof.Bs, proof.Krs
-	a[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
-	a[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
-	b[0][0] = new(big.Int).SetBytes(proofBytes[fpSize*2 : fpSize*3])
-	b[0][1] = new(big.Int).SetBytes(proofBytes[fpSize*3 : fpSize*4])
-	b[1][0] = new(big.Int).SetBytes(proofBytes[fpSize*4 : fpSize*5])
-	b[1][1] = new(big.Int).SetBytes(proofBytes[fpSize*5 : fpSize*6])
-	c[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
-	c[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
-
-	logger().Infof("a[0] is %s", a[0].String())
-	logger().Infof("a[1] is %s", a[1].String())
-
-	logger().Infof("b[0][0] is %s", b[0][0].String())
-	logger().Infof("b[0][1] is %s", b[0][1].String())
-	logger().Infof("b[1][0] is %s", b[1][0].String())
-	logger().Infof("b[1][1] is %s", b[1][1].String())
-
-	logger().Infof("c[0] is %s", c[0].String())
-	logger().Infof("c[1] is %s", c[1].String())
+	type ProofPublicData struct {
+		Proof         groth16.Proof
+		PublicWitness []string
+	}
+	proofPublicData := ProofPublicData{
+		Proof:         proof,
+		PublicWitness: make([]string, nbInputs),
+	}
+	for i := 0; i < nbInputs; i++ {
+		input := new(big.Int)
+		bPublicWitness[i].BigInt(input)
+		proofPublicData.PublicWitness[i] = input.String()
+	}
+	proofBytes, _ := json.Marshal(proofPublicData)
+	logger().Infof("proof.json %s", string(proofBytes))
 
 	return proofBytes, nil
 }
@@ -553,7 +538,7 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 
 func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	formatStr := "Failed to query proofs db, err: %+v"
-	query := "SELECT * FROM proofs WHERE proof_id = ? and computed_request_id = ?"
+	query := "SELECT proof FROM proofs WHERE proof_id = ? and computed_request_id = ?"
 
 	rows, err := db.Query(query, req.ProofId, req.ComputedRequestId)
 	if err != nil {
@@ -563,32 +548,36 @@ func queryProverJobStatus(req *pb.GetTaskResultRequest) *pb.Result {
 	defer rows.Close()
 
 	if rows.Next() { // if and only if one result
-		query = "SELECT job_data FROM prover_job_queue WHERE proof_id = ? and computed_request_id = ?"
+		var proofResult string
+		rows.Scan(&proofResult)
+		return getSuccessResult(proofResult)
 
-		rows, err = db.Query(query, req.ProofId, req.ComputedRequestId)
-		if err != nil {
-			logger().Errorf(formatStr, err)
-			return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
-		}
-		if rows.Next() {
-			var jobData string
-			err = rows.Scan(&jobData)
-			if err != nil {
-				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
-			}
-			proofReq := OriginalFinalProofRequest{}
-			if err = json.Unmarshal([]byte(jobData), &proofReq); err != nil {
-				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
-			}
+		// query = "SELECT job_data FROM prover_job_queue WHERE proof_id = ? and computed_request_id = ?"
 
-			proofBytes, err := os.ReadFile(proofReq.OutputPath)
-			if err != nil {
-				return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
-			}
+		// rows, err = db.Query(query, req.ProofId, req.ComputedRequestId)
+		// if err != nil {
+		// 	logger().Errorf(formatStr, err)
+		// 	return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
+		// }
+		// if rows.Next() {
+		// 	var jobData string
+		// 	err = rows.Scan(&jobData)
+		// 	if err != nil {
+		// 		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
+		// 	}
+		// 	proofReq := OriginalFinalProofRequest{}
+		// 	if err = json.Unmarshal([]byte(jobData), &proofReq); err != nil {
+		// 		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
+		// 	}
 
-			return getSuccessResult(hex.EncodeToString(proofBytes))
-		}
-		return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
+		// 	proofBytes, err := os.ReadFile(proofReq.OutputPath)
+		// 	if err != nil {
+		// 		return getErrorResult(pb.ResultCode_INTERNAL_ERROR, fmt.Sprintf(formatStr, err))
+		// 	}
+
+		// 	return getSuccessResult(hex.EncodeToString(proofBytes))
+		// }
+		// return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
 	}
 	return getErrorResult(pb.ResultCode_BUSY, fmt.Sprintf("proof hasn't been ready, err: %+v", err))
 }

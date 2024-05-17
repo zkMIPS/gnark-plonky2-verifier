@@ -20,3 +20,4 @@ gnark_sol_caller
 
 # Output from pprof visualization
 verifier.png
+.vscode
