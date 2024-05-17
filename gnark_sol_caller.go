@@ -108,8 +108,8 @@ func generateVerifySol(outputDir string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(buf.String())
-	fSol, _ := os.Create(filepath.Join(outputDir, "/verifier.sol"))
+	// fmt.Println(buf.String())
+	fSol, _ := os.Create(filepath.Join(outputDir, "verifier.sol"))
 	_, err = fSol.Write(buf.Bytes())
 	if err != nil {
 		log.Fatal(err)
