@@ -2,7 +2,7 @@ module github.com/succinctlabs/gnark-plonky2-verifier
 
 go 1.21
 
-toolchain go1.22.0
+//toolchain go1.22.0
 
 require (
 	github.com/consensys/gnark v0.9.0
