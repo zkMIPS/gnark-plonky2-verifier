@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"os"
@@ -38,24 +39,25 @@ func main() {
 	ChainId = flag.Int64("chainId", 11155111, "chainId")
 	Network = flag.String("network", "https://eth-sepolia.g.alchemy.com/v2/RH793ZL_pQkZb7KttcWcTlOjPrN0BjOW", "network")
 	HexPrivaeKey = flag.String("privateKey", "df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9", "privateKey")
-	verifierAddr := flag.String("addr", "", "addr")
+	verifierAddr := flag.String("addr", "0x012ef3e31BA2664163bD039535889aE7bE9E7E86", "addr")
 	outputDir := flag.String("outputDir", "hardhat/contracts", "outputDir")
+	proofPath := flag.String("proofPath", "./hardhat/test/snark_proof_with_public_inputs.json", "proofPath")
 	if len(os.Args) < 2 {
-		fmt.Println("expected 'deploy' or 'verify' or 'printvk' or 'all'  subcommands")
+		fmt.Println("expected 'verify' or 'generate'  subcommands")
 		os.Exit(1)
 	}
 	flag.CommandLine.Parse(os.Args[2:])
 	switch os.Args[1] {
-	case "deploy":
-		deployVerifierContract()
+	// case "deploy":
+	// 	deployVerifierContract()
 	case "verify":
-		callVerifierContract(*verifierAddr)
-	case "printvk":
-		PrintVk()
-	case "all":
-		deployAndCallVerifierContract()
-	case "verifylocal":
-		verifyLocal()
+		callSnarkVerifierContract(*verifierAddr, *proofPath)
+	// case "printvk":
+	// 	PrintVk()
+	// case "all":
+	// 	deployAndCallVerifierContract()
+	// case "verifylocal":
+	// 	verifyLocal()
 	case "generate":
 		generateVerifySol(*outputDir)
 	}
@@ -116,6 +118,99 @@ func generateVerifySol(outputDir string) {
 	}
 	fSol.Close()
 	fmt.Println("success")
+}
+
+func callSnarkVerifierContract(addr string, proofPath string) {
+
+	flag.Parse()
+
+	client, err := ethclient.Dial(*Network)
+	if err != nil {
+		log.Fatalf("Failed to create eth client: %v", err)
+	}
+	unlockedKey, err := crypto.HexToECDSA(*HexPrivaeKey)
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+	auth, err := bind.NewKeyedTransactorWithChainID(unlockedKey, big.NewInt(*ChainId))
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+	auth.GasLimit = 1000000
+
+	contractAddr := common.HexToAddress(addr)
+	verifierContract, _ := verifier.NewContract(contractAddr, client)
+
+	jsonFile, err := os.Open(proofPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer jsonFile.Close()
+
+	byteValue, err := io.ReadAll(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type ProofPublicData struct {
+		Proof struct {
+			Ar struct {
+				X string
+				Y string
+			}
+			Krs struct {
+				X string
+				Y string
+			}
+			Bs struct {
+				X struct {
+					A0 string
+					A1 string
+				}
+				Y struct {
+					A0 string
+					A1 string
+				}
+			}
+			Commitments []struct {
+				X string
+				Y string
+			}
+		}
+		PublicWitness []string
+	}
+	proofPublicData := ProofPublicData{}
+	err = json.Unmarshal(byteValue, &proofPublicData)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var input [65]*big.Int
+	for i := 0; i < len(proofPublicData.PublicWitness); i++ {
+		input[i], _ = new(big.Int).SetString(proofPublicData.PublicWitness[i], 0)
+	}
+
+	var vp = verifier.VerifierProof{}
+	vp.A.X, _ = new(big.Int).SetString(proofPublicData.Proof.Ar.X, 0)
+	vp.A.Y, _ = new(big.Int).SetString(proofPublicData.Proof.Ar.Y, 0)
+
+	vp.B.X[0], _ = new(big.Int).SetString(proofPublicData.Proof.Bs.X.A0, 0)
+	vp.B.X[1], _ = new(big.Int).SetString(proofPublicData.Proof.Bs.X.A1, 0)
+	vp.B.Y[0], _ = new(big.Int).SetString(proofPublicData.Proof.Bs.Y.A0, 0)
+	vp.B.Y[1], _ = new(big.Int).SetString(proofPublicData.Proof.Bs.Y.A1, 0)
+
+	vp.C.X, _ = new(big.Int).SetString(proofPublicData.Proof.Krs.X, 0)
+	vp.C.Y, _ = new(big.Int).SetString(proofPublicData.Proof.Krs.Y, 0)
+
+	var proofCommitment [2]*big.Int
+	proofCommitment[0], _ = new(big.Int).SetString(proofPublicData.Proof.Commitments[0].X, 0)
+	proofCommitment[1], _ = new(big.Int).SetString(proofPublicData.Proof.Commitments[0].Y, 0)
+
+	tx, err := verifierContract.VerifyTx(auth, vp, input, proofCommitment)
+	if err != nil {
+		log.Fatalf("Failed to VerifyProof,err:[%+v]", err)
+	}
+	fmt.Printf("verify proof txHash: %+v\n", tx.Hash())
 }
 
 func callVerifierContract(addr string) {
