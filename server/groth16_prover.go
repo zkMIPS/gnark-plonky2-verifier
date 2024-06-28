@@ -82,7 +82,9 @@ func proverWorkCycle(workerName string, interval uint64, proverTimeout uint64, h
 		ch := make(chan Groth16ProofResult)
 
 		start := time.Now()
-		go computeProof(job, workerName, ch, heartBeat)
+		go record_metrics("snark::compute_proof", func() {
+			computeProof(job, workerName, ch, heartBeat)
+		})
 
 		select {
 		case result := <-ch:
