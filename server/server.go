@@ -5,6 +5,14 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
@@ -18,14 +26,11 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"net"
-	"os"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
+
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -33,6 +38,7 @@ var (
 	certFile        = flag.String("cert_file", "", "The TLS cert file")
 	keyFile         = flag.String("key_file", "", "The TLS key file")
 	port            = flag.Int("port", 50051, "The server port")
+	metricsPort     = flag.Int("metrics_port", 50061, "The metrics port")
 	workerName      = flag.String("prover_worker_name", "groth16_prover", "The prover worker name")
 	proverCycleTime = flag.Uint64("prover_cycle_time", 1000, "The prover cycle time")
 	proverHeartBeat = flag.Uint64("prover_heart_beat", 2000, "The prover heart beat")
@@ -135,7 +141,7 @@ func initCircuitKeys() {
 			return
 		}
 
-		proofWithPisData, err := types.ReadProofWithPublicInputs(*cacheDir  + "/proof_with_public_inputs.json")
+		proofWithPisData, err := types.ReadProofWithPublicInputs(*cacheDir + "/proof_with_public_inputs.json")
 		if err != nil {
 			logger().Errorln(err)
 			return
@@ -249,7 +255,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to generate credentials: %v", err)
 		}
-		opts = []grpc.ServerOption{grpc.Creds(creds)}
+		opts = []grpc.ServerOption{
+			grpc.Creds(creds),
+			grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+			grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		}
 	}
 
 	connectDatabase()
@@ -261,5 +271,13 @@ func main() {
 
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterProverServiceServer(grpcServer, newServer())
+
+	grpc_prometheus.Register(grpcServer)
+	grpc_prometheus.EnableHandlingTimeHistogram()
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *metricsPort), nil))
+	}()
+
 	grpcServer.Serve(lis)
 }
