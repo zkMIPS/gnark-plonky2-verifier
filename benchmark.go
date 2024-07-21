@@ -36,10 +36,8 @@ func init_circuit_keys(plonky2Circuit string, circuitPath string, pkPath string,
 		return
 	}
 
-	// 使用os.Stat()函数检查文件是否存在
 	_, err := os.Stat(circuitPath)
 
-	// 检查错误
 	if os.IsNotExist(err) {
 		commonCircuitData, err := types.ReadCommonCircuitData("testdata/" + plonky2Circuit + "/common_circuit_data.json")
 		if err != nil {
