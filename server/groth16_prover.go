@@ -290,15 +290,15 @@ func getWitness(inputDir string) (verifier.ExampleVerifierCircuit, error) {
 }
 
 func generateProof(inputDir string, outputPath string, assignment verifier.ExampleVerifierCircuit, r1cs constraint.ConstraintSystem) ([]byte, error) {
-	fPK, _ := os.Create(inputDir + "/proving.key")
-	pk.WriteTo(fPK)
-	fPK.Close()
+	// fPK, _ := os.Create(inputDir + "/proving.key")
+	// pk.WriteTo(fPK)
+	// fPK.Close()
 
-	if vk != nil {
-		fVK, _ := os.Create(inputDir + "/verifying.key")
-		vk.WriteTo(fVK)
-		fVK.Close()
-	}
+	// if vk != nil {
+	// 	fVK, _ := os.Create(inputDir + "/verifying.key")
+	// 	vk.WriteTo(fVK)
+	// 	fVK.Close()
+	// }
 
 	start := time.Now()
 	logger().Infof("Generating witness: %v", start)
