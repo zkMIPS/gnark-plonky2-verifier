@@ -52,8 +52,6 @@ type Groth16ProofResult struct {
 }
 
 type OriginalFinalProofRequest struct {
-	ChainId           uint64 `protobuf:"varint,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	Timestamp         uint64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	ProofId           string `protobuf:"bytes,3,opt,name=proof_id,json=proofId,proto3" json:"proof_id,omitempty"`
 	ComputedRequestId string `protobuf:"bytes,4,opt,name=computed_request_id,json=computedRequestId,proto3" json:"computed_request_id,omitempty"`
 	// There are three files in the folder
@@ -494,8 +492,6 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 	starkProofDir := filepath.Clean(*inputParentDir) + "/" + req.ProofId
 	outputDir := starkProofDir + "/final"
 	originalReq := OriginalFinalProofRequest{
-		ChainId:           req.ChainId,
-		Timestamp:         req.Timestamp,
 		ProofId:           req.ProofId,
 		ComputedRequestId: req.ComputedRequestId,
 		InputDir:          starkProofDir + "/aggregate",

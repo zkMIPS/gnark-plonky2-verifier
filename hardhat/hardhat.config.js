@@ -1,3 +1,4 @@
+require("dotenv").config({ path: __dirname + "/.env" });
 require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -5,14 +6,13 @@ module.exports = {
   solidity: "0.8.24",
   defaultNetwork: "localhost",
   networks: {
-    hardhat: {
-    },
+    hardhat: {},
     // example
-    sepolia: {  
-      url: "https://eth-sepolia.g.alchemy.com/v2/RH793ZL_pQkZb7KttcWcTlOjPrN0BjOW",  
-      accounts: ["df4bc5647fdb9600ceb4943d4adff3749956a8512e5707716357b13d5ee687d9"],  
+    sepolia: {
+      url: process.env.RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
       chainId: 11155111,
       gasPrice: 1000000000,
-    }
-  }
+    },
+  },
 };
