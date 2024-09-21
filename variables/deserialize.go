@@ -1,6 +1,7 @@
 package variables
 
 import (
+	"crypto/sha256"
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
@@ -142,6 +143,15 @@ func DeserializeProofWithPublicInputs(raw types.ProofWithPublicInputsRaw) ProofW
 		PowWitness uint64
 	}(raw.Proof.OpeningProof))
 	proofWithPis.PublicInputs = gl.Uint64ArrayToVariableArray(raw.PublicInputs)
+
+	publicInputs := make([]byte, len(raw.PublicInputs))
+	for i, v := range raw.PublicInputs {
+		publicInputs[i] = byte(v)
+	}
+	publicInputsHash := sha256.Sum256(publicInputs)
+	publicInputsHash[0] = publicInputsHash[0] & 0x1f
+	publicInputHashBigInt := new(big.Int).SetBytes(publicInputsHash[:])
+	proofWithPis.PublicInputsHash = frontend.Variable(publicInputHashBigInt)
 
 	return proofWithPis
 }

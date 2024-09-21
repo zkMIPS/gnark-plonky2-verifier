@@ -2,6 +2,8 @@ package verifier
 
 import (
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/hash"
+	"github.com/consensys/gnark/std/hash/sha2"
 	"github.com/succinctlabs/gnark-plonky2-verifier/challenger"
 	"github.com/succinctlabs/gnark-plonky2-verifier/fri"
 	gl "github.com/succinctlabs/gnark-plonky2-verifier/goldilocks"
@@ -18,6 +20,7 @@ type VerifierChip struct {
 	poseidonBN254Chip *poseidon.BN254Chip      `gnark:"-"`
 	plonkChip         *plonk.PlonkChip         `gnark:"-"`
 	friChip           *fri.Chip                `gnark:"-"`
+	sha256Chip        hash.BinaryHasher        `gnark:"-"`
 	commonData        types.CommonCircuitData  `gnark:"-"`
 }
 
@@ -27,6 +30,11 @@ func NewVerifierChip(api frontend.API, commonCircuitData types.CommonCircuitData
 	plonkChip := plonk.NewPlonkChip(api, commonCircuitData)
 	poseidonGlChip := poseidon.NewGoldilocksChip(api)
 	poseidonBN254Chip := poseidon.NewBN254Chip(api)
+	sha256Chip, err := sha2.New(api)
+	if err != nil {
+		return nil
+	}
+
 	return &VerifierChip{
 		api:               api,
 		glChip:            glChip,
@@ -34,6 +42,7 @@ func NewVerifierChip(api frontend.API, commonCircuitData types.CommonCircuitData
 		poseidonBN254Chip: poseidonBN254Chip,
 		plonkChip:         plonkChip,
 		friChip:           friChip,
+		sha256Chip:        sha256Chip,
 		commonData:        commonCircuitData,
 	}
 }

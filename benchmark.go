@@ -60,6 +60,7 @@ func init_circuit_keys(plonky2Circuit string, circuitPath string, pkPath string,
 		verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 		circuit := verifier.ExampleVerifierCircuit{
+			PublicInputsHash:        proofWithPis.PublicInputsHash,
 			Proof:                   proofWithPis.Proof,
 			PublicInputs:            proofWithPis.PublicInputs,
 			VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -142,6 +143,7 @@ func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 	circuit := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -210,6 +212,7 @@ func plonkProof(r1cs constraint.ConstraintSystem, circuitName string, dummy bool
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -308,6 +311,7 @@ func groth16ProofWithCache(r1cs constraint.ConstraintSystem, circuitName string,
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -427,6 +431,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,

@@ -222,6 +222,7 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 	circuit := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -284,6 +285,7 @@ func getWitness(inputDir string) (verifier.ExampleVerifierCircuit, error) {
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,

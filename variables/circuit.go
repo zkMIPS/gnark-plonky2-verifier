@@ -1,6 +1,7 @@
 package variables
 
 import (
+	"github.com/consensys/gnark/frontend"
 	gl "github.com/succinctlabs/gnark-plonky2-verifier/goldilocks"
 	"github.com/succinctlabs/gnark-plonky2-verifier/poseidon"
 )
@@ -14,8 +15,9 @@ type Proof struct {
 }
 
 type ProofWithPublicInputs struct {
-	Proof        Proof
-	PublicInputs []gl.Variable // Length = CommonCircuitData.NumPublicInputs
+	Proof            Proof
+	PublicInputs     []gl.Variable // Length = CommonCircuitData.NumPublicInputs
+	PublicInputsHash frontend.Variable
 }
 
 type VerifierOnlyCircuitData struct {
