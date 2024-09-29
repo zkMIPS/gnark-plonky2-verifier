@@ -156,6 +156,7 @@ func initCircuitKeys() {
 		verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 		circuit := verifier.ExampleVerifierCircuit{
+			PublicInputsHash:        proofWithPis.PublicInputsHash,
 			Proof:                   proofWithPis.Proof,
 			PublicInputs:            proofWithPis.PublicInputs,
 			VerifierOnlyCircuitData: verifierOnlyCircuitData,

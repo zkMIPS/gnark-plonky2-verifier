@@ -220,6 +220,7 @@ func computeProof(job ProverInputResponse, proverName string, ch chan Groth16Pro
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 
 	circuit := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -282,6 +283,7 @@ func getWitness(inputDir string) (verifier.ExampleVerifierCircuit, error) {
 	}
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitRawData)
 	assignment := verifier.ExampleVerifierCircuit{
+		PublicInputsHash:        proofWithPis.PublicInputsHash,
 		Proof:                   proofWithPis.Proof,
 		PublicInputs:            proofWithPis.PublicInputs,
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
@@ -290,16 +292,6 @@ func getWitness(inputDir string) (verifier.ExampleVerifierCircuit, error) {
 }
 
 func generateProof(inputDir string, outputPath string, assignment verifier.ExampleVerifierCircuit, r1cs constraint.ConstraintSystem) ([]byte, error) {
-	// fPK, _ := os.Create(inputDir + "/proving.key")
-	// pk.WriteTo(fPK)
-	// fPK.Close()
-
-	// if vk != nil {
-	// 	fVK, _ := os.Create(inputDir + "/verifying.key")
-	// 	vk.WriteTo(fVK)
-	// 	fVK.Close()
-	// }
-
 	start := time.Now()
 	logger().Infof("Generating witness: %v", start)
 	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
