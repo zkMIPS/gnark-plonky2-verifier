@@ -1,0 +1,62 @@
+version: 2
+enable-beta-ecosystems: false
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/goldilocks/"
+    schedule:
+      interval: "monthly"
+  
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/plonk/"
+    schedule:
+      interval: "monthly"
+  
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/poseidon/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/fri/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/verifier/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/variables/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/types/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/server/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/proto/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/client/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/challenger/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "gomod"
+    directory: "/gnark-plonky2-verifier/certificate/data/data.go"
+    schedule:
+      interval: "monthly"
