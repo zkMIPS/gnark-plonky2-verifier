@@ -217,7 +217,7 @@ contract Verifier {
         
     }
 
-    function VerifyUserData(
+    function verifyUserData(
         uint8[32] memory _userData,
         uint32[8] memory _memRootBefore,
         uint32[8] memory _memRootAfter,
