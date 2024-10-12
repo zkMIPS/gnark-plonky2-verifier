@@ -57,9 +57,7 @@ describe('Verifier', function () {
         const memBefore = data.slice(0, 8);
         const memAfter = data.slice(8, 16);
         const userData = data.slice(16, 48);
-        const digest = data.slice(48, 52);
-        const sigmas = data.slice(52, 116);
-        const result = await verifier.verifyUserData(userData, memBefore, memAfter, digest, sigmas);
+        const result = await verifier.verifyUserData(userData, memBefore, memAfter);
 
         const snarkProofData = JSON.parse(fs.readFileSync('./test/snark_proof_with_public_inputs.json', 'utf8'));
         const expectedPublicInput = ethers.getBigInt(snarkProofData['PublicWitness'][0]);
