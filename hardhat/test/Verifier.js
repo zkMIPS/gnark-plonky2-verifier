@@ -51,7 +51,7 @@ describe('Verifier', function () {
 
 
     it('Verify user data', async function () {
-        const rawData = JSON.parse(fs.readFileSync('./test/block_proof.json', 'utf8'));
+        const rawData = JSON.parse(fs.readFileSync('./test/block_public_inputs.json', 'utf8'));
         const data = rawData['public_inputs'];
 
         const memBefore = data.slice(0, 8);

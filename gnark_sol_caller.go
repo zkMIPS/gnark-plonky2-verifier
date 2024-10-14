@@ -89,7 +89,7 @@ func generateVerifySol(outputDir string) {
 	}
 
 	// constant
-	file, err := os.Open("testdata/" + circuitName + "/block_proof.json")
+	file, err := os.Open("testdata/" + circuitName + "/block_public_inputs.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
