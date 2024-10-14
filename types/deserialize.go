@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+type PublicInputsOnly struct {
+	PublicInputs []uint64 `json:"public_inputs"`
+}
+
 type ProofWithPublicInputsRaw struct {
 	Proof struct {
 		WiresCap                  []string `json:"wires_cap"`

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"io"
 	"log"
 	"math/big"
@@ -62,7 +63,10 @@ func generateVerifySol(outputDir string) {
 		Beta      string
 		Gamma     string
 		Delta     string
+		Digest    string
 		Gamma_abc string
+		Sigmas    string
+		Len       int
 	}
 
 	var config VerifyingKeyConfig
@@ -83,6 +87,39 @@ func generateVerifySol(outputDir string) {
 	for k, v := range vk.G1.K {
 		config.Gamma_abc += fmt.Sprint("        vk.gamma_abc[", k, "] = Pairing.G1Point(uint256(", v.X.String(), "), uint256(", v.Y.String(), "));\n")
 	}
+
+	// constant
+	file, err := os.Open("testdata/" + circuitName + "/block_public_inputs.json")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	rawBytes, _ := io.ReadAll(file)
+	var publicInputsOnly types.PublicInputsOnly
+	err = json.Unmarshal(rawBytes, &publicInputsOnly)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	piData := publicInputsOnly.PublicInputs[48:]
+	circuitDIgest := combineToBigInt(piData, 0)
+	config.Digest = circuitDIgest.String()
+
+	l := len(piData)/4 - 1
+	config.Len = l
+
+	config.Sigmas = fmt.Sprint("[\n")
+	for i := 0; i < l; i++ {
+		v := combineToBigInt(piData, i*4+4)
+		config.Sigmas += fmt.Sprint("\t\t\t", v)
+		if i < l-1 {
+			config.Sigmas += fmt.Sprint(",\n")
+		}
+	}
+	config.Sigmas += fmt.Sprint("\n\t\t]")
+
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, config)
 	if err != nil {
@@ -95,6 +132,19 @@ func generateVerifySol(outputDir string) {
 	}
 	fSol.Close()
 	log.Println("success")
+}
+
+func combineToBigInt(data []uint64, idx int) *big.Int {
+	result := new(big.Int)
+
+	for i := 0; i < 4; i++ {
+		part := new(big.Int).SetUint64(data[idx+i])
+
+		part.Lsh(part, uint(64*(3-i)))
+		result.Add(result, part)
+	}
+
+	return result
 }
 
 func callSnarkVerifierContract(addr string, proofPath string) {
