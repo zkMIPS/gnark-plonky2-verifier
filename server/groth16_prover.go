@@ -437,7 +437,7 @@ func storeProof(job ProverInputResponse, proof Groth16ProofResult) error {
 }
 
 func saveStarkProofIntoDisk(commonCircuitData []byte, verifierOnlyCircuitData []byte,
-	proofWithPublicInputs []byte, starkProofDir string, outputDir string) error {
+	proofWithPublicInputs []byte, blockPublicInputs []byte, starkProofDir string, outputDir string) error {
 
 	err := os.MkdirAll(starkProofDir+"/aggregate", 0755)
 	if err != nil {
@@ -455,6 +455,11 @@ func saveStarkProofIntoDisk(commonCircuitData []byte, verifierOnlyCircuitData []
 	}
 
 	err = saveJsonFile(starkProofDir+"/proof_with_public_inputs.json", proofWithPublicInputs)
+	if err != nil {
+		return err
+	}
+
+	err = saveJsonFile(starkProofDir+"/block_public_inputs.json", blockPublicInputs)
 	if err != nil {
 		return err
 	}
@@ -507,6 +512,7 @@ func addProverJobToQueue(ctx context.Context, req *pb.FinalProofRequest) *pb.Res
 		req.CommonCircuitData,
 		req.VerifierOnlyCircuitData,
 		req.ProofWithPublicInputs,
+		req.BlockPublicInputs,
 		originalReq.InputDir,
 		outputDir,
 	)
