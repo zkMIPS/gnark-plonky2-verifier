@@ -56,7 +56,12 @@ describe('Verifier', function () {
 
         const memBefore = data.slice(0, 8);
         const memAfter = data.slice(8, 16);
-        const userData = data.slice(16, 48);
+        // bincode user data
+        let userData = new Uint8Array(16);
+        userData[0] = 8;
+        const subData = ethers.toUtf8Bytes('12345678');
+        userData.set(subData, 8);
+
         const result = await verifier.verifyUserData(userData, memBefore, memAfter);
 
         const snarkProofData = JSON.parse(fs.readFileSync('./test/snark_proof_with_public_inputs.json', 'utf8'));
