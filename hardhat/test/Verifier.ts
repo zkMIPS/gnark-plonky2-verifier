@@ -1,7 +1,8 @@
-const fs = require('fs');
-const { expect } = require("chai");
-const { ethers } = require('hardhat');
-const assert = require("node:assert");
+import * as  fs from "fs";
+import { expect } from "chai";
+import { ethers } from 'hardhat';
+import assert from "node:assert";
+import { String } from "bincoder";
   
 describe('Verifier', function () {
     let verifier;
@@ -57,12 +58,11 @@ describe('Verifier', function () {
         const memBefore = data.slice(0, 8);
         const memAfter = data.slice(8, 16);
         // bincode user data
-        let userData = new Uint8Array(16);
-        userData[0] = 8;
-        const subData = ethers.toUtf8Bytes('12345678');
-        userData.set(subData, 8);
+        const rawUserData = new String('12345678');
+        const encoded = rawUserData.pack();
+        const userData = new Uint8Array(encoded);
 
-        const result = await verifier.verifyUserData(userData, memBefore, memAfter);
+        const result = await verifier.calculatePublicInput(userData, memBefore, memAfter);
 
         const snarkProofData = JSON.parse(fs.readFileSync('./test/snark_proof_with_public_inputs.json', 'utf8'));
         const expectedPublicInput = ethers.getBigInt(snarkProofData['PublicWitness'][0]);

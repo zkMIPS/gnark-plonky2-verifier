@@ -218,7 +218,7 @@ contract Verifier {
         
     }
 
-    function verifyUserData(
+    function calculatePublicInput(
         bytes memory _userData,
         uint32[8] memory _memRootBefore,
         uint32[8] memory _memRootAfter
