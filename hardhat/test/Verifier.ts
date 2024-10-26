@@ -1,9 +1,9 @@
 import * as  fs from "fs";
-import { expect } from "chai";
-import { ethers } from 'hardhat';
+import {expect} from "chai";
+import {ethers} from 'hardhat';
 import assert from "node:assert";
-import { String } from "bincoder";
-  
+import {String, Uint8, Vec} from "bincoder";
+
 describe('Verifier', function () {
     let verifier;
     let signer;
@@ -61,6 +61,13 @@ describe('Verifier', function () {
         const rawUserData = new String('12345678');
         const encoded = rawUserData.pack();
         const userData = new Uint8Array(encoded);
+
+        // bincode sha2-rust public input
+        const numbers = [113, 30, 150, 9, 51, 158, 146, 176, 61, 220, 10, 33, 24, 39, 219, 164, 33, 243, 143, 158, 216, 185, 216, 6, 225, 255, 221, 140, 21, 255, 160, 61].map(num => new Uint8(num));
+        const rawSha2 = new Vec(Uint8, numbers);
+        const encodedSha2 = rawSha2.pack();
+        const sha2 = new Uint8Array(encodedSha2);
+        console.log(sha2)
 
         const result = await verifier.calculatePublicInput(userData, memBefore, memAfter);
 
