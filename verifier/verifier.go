@@ -85,7 +85,7 @@ func (c *VerifierChip) GetChallenges(
 			proof.OpeningProof.CommitPhaseMerkleCaps,
 			proof.OpeningProof.FinalPoly,
 			proof.OpeningProof.PowWitness,
-			c.commonData.DegreeBits,
+			//c.commonData.DegreeBits,
 			config.FriConfig,
 		),
 	}
